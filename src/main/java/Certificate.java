@@ -22,4 +22,9 @@ public class Certificate {
     public void setSignature(byte[] signature) {
         this.signature = signature;
     }
+
+    public String getUsername() {
+        return username;
+    }
+
 }
