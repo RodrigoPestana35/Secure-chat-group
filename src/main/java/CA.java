@@ -1,14 +1,13 @@
-import java.security.KeyPair;
-import java.security.KeyPairGenerator;
-import java.security.PrivateKey;
-import java.security.Signature;
+import java.security.*;
 
 public class CA {
-    private PrivateKey privateKey;
+    private PublicKey publicRSAKey;
+    private PrivateKey privateRSAKey;
 
     public CA() throws Exception {
         KeyPair keyPair =  KeyPairGenerator.getInstance("RSA").generateKeyPair();
-        this.privateKey = keyPair.getPrivate();
+        this.publicRSAKey = keyPair.getPublic();
+        this.privateRSAKey = keyPair.getPrivate();
     }
 
     public void signCertificate(Certificate certificate) throws Exception {
@@ -16,7 +15,7 @@ public class CA {
 
         //logica para assinar o certificado
         Signature privateSignature = Signature.getInstance("SHA256withRSA");
-        privateSignature.initSign(this.privateKey);
+        privateSignature.initSign(this.privateRSAKey);
         privateSignature.update(certificate.getUsername().getBytes());
         byte[] signature = privateSignature.sign();
         certificate.setSignature(signature);
