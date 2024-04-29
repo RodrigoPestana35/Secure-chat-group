@@ -15,6 +15,7 @@ import java.security.PublicKey;
 public class Sender {
 
     private static final String HOST = "0.0.0.0";
+    private static int port = 8000;
     private final Socket client;
     private final ObjectInputStream in;
     private final ObjectOutputStream out;
@@ -26,12 +27,11 @@ public class Sender {
      * Constructs a Sender object by specifying the port to connect to. The socket must be created before the sender can
      * send a message.
      *
-     * @param port the port to connect to
-     *
      * @throws Exception when an I/O error occurs when creating the socket
      */
-    public Sender ( int port ) throws Exception {
+    public Sender ( ) throws Exception {
         client = new Socket ( HOST , port );
+        port++;
         out = new ObjectOutputStream ( client.getOutputStream ( ) );
         in = new ObjectInputStream ( client.getInputStream ( ) );
 
