@@ -7,15 +7,19 @@ public class Message implements Serializable {
 
     private final byte[] message;
     private final byte[] digest;
+    private String receiver;
+    private String sender;
 
     /**
      * Constructs a Message object by specifying the message bytes that will be sent between the client and the server.
      *
      * @param message the message that is sent to the server
      */
-    public Message ( byte[] message, byte[] digest ) {
+    public Message ( byte[] message, byte[] digest, String sender, String receiver ) {
         this.digest = digest;
         this.message = message;
+        this.receiver = receiver;
+        this.sender = sender;
     }
 
     /**
