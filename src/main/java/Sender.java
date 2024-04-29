@@ -7,7 +7,6 @@ import java.security.KeyPair;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
-import java.util.Scanner;
 
 /**
  * This class represents the sender of the message. It sends the message to the receiver by means of a socket. The use
@@ -23,6 +22,8 @@ public class Sender implements Runnable {
     private final PublicKey publicRSAKey;
     private final PrivateKey privateRSAKey;
     private final PublicKey receiverPublicRSAKey;
+    private String username;
+    private static int ID = 1;
 
     /**
      * Constructs a Sender object by specifying the port to connect to. The socket must be created before the sender can
@@ -35,6 +36,9 @@ public class Sender implements Runnable {
         port++;
         out = new ObjectOutputStream ( client.getOutputStream ( ) );
         in = new ObjectInputStream ( client.getInputStream ( ) );
+
+        this.username="User"+ID;
+        ID++;
 
         KeyPair keyPair = Encryption.generateKeyPair();
         this.publicRSAKey = keyPair.getPublic();
@@ -59,7 +63,9 @@ public class Sender implements Runnable {
     public void sendMessage ( String message ) throws Exception {
         BigInteger sharedSecret = agreeOnSharedSecretSend();
         // Creates the message object
-        Message messageObj = new Message ( Encryption.encryptAES( message.getBytes ( ), sharedSecret.toByteArray() ), Encryption.encryptRSA(Integrity.generateDigest(message.getBytes()),privateRSAKey));
+        byte[] messageEncrypted = Encryption.encryptAES ( message.getBytes ( ), sharedSecret.toByteArray ( ) );
+        byte[] digest = Encryption.encryptRSA(Integrity.generateDigest(message.getBytes()),privateRSAKey);
+        Message messageObj = new Message ( messageEncrypted, digest, username, "receiver" );
         // Sends the message
         out.writeObject ( messageObj );
         // Close connection
@@ -125,26 +131,7 @@ public class Sender implements Runnable {
     @Override
     public void run() {
         try {
-            // Thread para enviar mensagens
-            new Thread(() -> {
-                try {
-                    Scanner usrInput = new Scanner ( System.in );
-                    System.out.println ( "Write the message to send" );
-                    String message = usrInput.nextLine ( );
-                    sendMessage(message);
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
-                }
-            }).start();
-
-            // Thread para receber mensagens
-            new Thread(() -> {
-                try {
-                    receiveMessage();
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
-                }
-            }).start();
+            sendMessage("Hello, World!");
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
