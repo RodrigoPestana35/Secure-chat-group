@@ -59,7 +59,7 @@ public class Receiver implements Runnable {
      */
     private void process ( ObjectInputStream in ) throws Exception {
 
-        PublicKey senderPublicRSAKey = rsaKeyDistribution(in);
+        PublicKey senderPublicRSAKey = rsaKeyDistribution();
 
         byte[] sharedSecret = agreeOnSharedSecret(senderPublicRSAKey).toByteArray();
 
@@ -86,7 +86,7 @@ public class Receiver implements Runnable {
         return DiffieHellman.computeSecret(new BigInteger(senderPublicKeyDecrypted), privateDHKey);
     }
 
-    private PublicKey rsaKeyDistribution(ObjectInputStream in) throws IOException, ClassNotFoundException {
+    private PublicKey rsaKeyDistribution() throws IOException, ClassNotFoundException {
         PublicKey publicKey = (PublicKey) in.readObject();
         out.writeObject(this.publicRSAKey);
         return publicKey;
