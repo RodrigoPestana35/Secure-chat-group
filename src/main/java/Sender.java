@@ -7,7 +7,11 @@ import java.security.KeyPair;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Scanner;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * This class represents the sender of the message. It sends the message to the receiver by means of a socket. The use
@@ -63,10 +67,23 @@ public class Sender implements Runnable {
      */
     public void sendMessage ( String message ) throws Exception {
         BigInteger sharedSecret = agreeOnSharedSecretSend();
+        // Cria um padrão para encontrar partes que começam com "@"
+        Pattern pattern = Pattern.compile("@\\w+");
+        Matcher matcher = pattern.matcher(message);
+        // Cria uma lista para armazenar as partes encontradas
+        List<String> parts = new ArrayList<>();
+
+        // Encontra todas as partes que correspondem ao padrão
+        while (matcher.find()) {
+            // Adiciona a parte encontrada à lista, removendo o "@"
+            parts.add(matcher.group().substring(1));
+        }
+        // Converte a lista em um array
+        String[] receivers = parts.toArray(new String[0]);
         // Creates the message object
         byte[] messageEncrypted = Encryption.encryptAES ( message.getBytes ( ), sharedSecret.toByteArray ( ) );
         byte[] digest = Encryption.encryptRSA(Integrity.generateDigest(message.getBytes()),privateRSAKey);
-        Message messageObj = new Message ( messageEncrypted, digest, username, "receiver" );
+        Message messageObj = new Message ( messageEncrypted, digest, username, receivers );
         // Sends the message
         out.writeObject ( messageObj );
         // Close connection
