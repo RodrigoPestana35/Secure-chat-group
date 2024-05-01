@@ -7,6 +7,7 @@ import java.security.KeyPair;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.util.Scanner;
 
 /**
  * This class represents the sender of the message. It sends the message to the receiver by means of a socket. The use
@@ -128,10 +129,45 @@ public class Sender implements Runnable {
         in.close ( );
     }
 
+    private class MessageSender implements Runnable {
+        @Override
+        public void run() {
+            try {
+                while (true){
+                    Scanner scanner = new Scanner(System.in);
+                    System.out.println("Por favor, insira algo:");
+                    String message = scanner.nextLine();
+                    sendMessage(message);
+                }
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
+    private class MessageReceiver implements Runnable {
+        @Override
+        public void run() {
+            try {
+                while (true){
+                    receiveMessage();
+                }
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
     @Override
     public void run() {
         try {
-            sendMessage("Hello, World!");
+            //conexao com o servidor e certificado
+
+            //inicialização das threads responsaveis por enviar e receber mensagens
+            Thread senderThread = new Thread(new MessageSender());
+            Thread receiverThread = new Thread(new MessageReceiver());
+            senderThread.start();
+            receiverThread.start();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
