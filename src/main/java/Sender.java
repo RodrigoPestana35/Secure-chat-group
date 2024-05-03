@@ -69,26 +69,13 @@ public class Sender implements Runnable {
      *
      * @throws Exception when an I/O error occurs when sending the message
      */
-    public void sendMessage ( String message ) throws Exception {
+    public void sendMessage ( String message, String receiver ) throws Exception {
         receiverPublicRSAKey = rsaKeyDistributionSend();
         byte[] sharedSecret = agreeOnSharedSecretSend(receiverPublicRSAKey).toByteArray();
-        // Cria um padrão para encontrar partes que começam com "@"
-        Pattern pattern = Pattern.compile("@\\w+");
-        Matcher matcher = pattern.matcher(message);
-        // Cria uma lista para armazenar as partes encontradas
-        List<String> parts = new ArrayList<>();
-
-        // Encontra todas as partes que correspondem ao padrão
-        while (matcher.find()) {
-            // Adiciona a parte encontrada à lista, removendo o "@"
-            parts.add(matcher.group().substring(1));
-        }
-        // Converte a lista em um array
-        String[] receivers = parts.toArray(new String[0]);
         // Creates the message object
         byte[] messageEncrypted = Encryption.encryptAES ( message.getBytes ( ), sharedSecret );
         byte[] digest = Encryption.encryptRSA(Integrity.generateDigest(message.getBytes()),privateRSAKey);
-        Message messageObj = new Message ( messageEncrypted, digest, username, receivers );
+        Message messageObj = new Message ( messageEncrypted, digest, username, receiver );
         // Sends the message
         out.writeObject ( messageObj );
         // Close connection
@@ -157,7 +144,26 @@ public class Sender implements Runnable {
                     Scanner scanner = new Scanner(System.in);
                     System.out.println("Por favor, insira algo:");
                     String message = scanner.nextLine();
-                    sendMessage(message);
+                    // Cria um padrão para encontrar partes que começam com "@"
+                    Pattern pattern = Pattern.compile("@\\w+");
+                    Matcher matcher = pattern.matcher(message);
+                    // Cria uma lista para armazenar as partes encontradas
+                    List<String> parts = new ArrayList<>();
+                    // Encontra todas as partes que correspondem ao padrão
+                    while (matcher.find()) {
+                        // Adiciona a parte encontrada à lista, removendo o "@"
+                        parts.add(matcher.group().substring(1));
+                    }
+                    // Converte a lista em um array
+                    String[] receivers = parts.toArray(new String[0]);
+                    if (receivers.length == 0) {
+                        sendMessage(message, "all");
+                    }
+                    else {
+                        for (int i = 0; i < receivers.length; i++) {
+                            sendMessage(message, receivers[i]);
+                        }
+                    }
                 }
             } catch (Exception e) {
                 throw new RuntimeException(e);
