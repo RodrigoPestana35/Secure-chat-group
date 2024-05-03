@@ -39,17 +39,22 @@ public class Receiver implements Runnable {
     }
 
     @Override
-    public void run ( ) {
+    public void run() {
         try {
-            client = server.accept ( );
-            in = new ObjectInputStream ( client.getInputStream ( ) );
-            out = new ObjectOutputStream ( client.getOutputStream ( ) );
-            // Process the request
-            process ( in );
-            // Close connection
-            //closeConnection ( );
-        } catch ( Exception e ) {
-            throw new RuntimeException ( e );
+            while (true) {
+                final Socket client = server.accept();
+                new Thread(() -> {
+                    try {
+                        ObjectInputStream in = new ObjectInputStream(client.getInputStream());
+                        ObjectOutputStream out = new ObjectOutputStream(client.getOutputStream());
+                        process(in);
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                }).start();
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
     }
 
