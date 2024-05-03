@@ -7,7 +7,7 @@ public class Message implements Serializable {
 
     private final byte[] message;
     private final byte[] digest;
-    private String[] receiver;
+    private String[] receivers;
     private String sender;
 
     /**
@@ -15,10 +15,10 @@ public class Message implements Serializable {
      *
      * @param message the message that is sent to the server
      */
-    public Message ( byte[] message, byte[] digest, String sender, String[] receiver ) {
+    public Message ( byte[] message, byte[] digest, String sender, String[] receivers ) {
         this.digest = digest;
         this.message = message;
-        this.receiver = receiver;
+        this.receivers = receivers;
         this.sender = sender;
     }
 

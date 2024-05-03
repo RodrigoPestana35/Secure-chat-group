@@ -26,7 +26,7 @@ public class Sender implements Runnable {
     private final ObjectOutputStream out;
     private final PublicKey publicRSAKey;
     private final PrivateKey privateRSAKey;
-    private final PublicKey receiverPublicRSAKey;
+    private PublicKey receiverPublicRSAKey;
     private String username;
     private static int ID = 1;
 
@@ -48,13 +48,17 @@ public class Sender implements Runnable {
         KeyPair keyPair = Encryption.generateKeyPair();
         this.publicRSAKey = keyPair.getPublic();
         this.privateRSAKey = keyPair.getPrivate();
-
-        this.receiverPublicRSAKey = rsaKeyDistribution();
     }
 
-    private PublicKey rsaKeyDistribution() throws IOException, ClassNotFoundException {
+    private PublicKey rsaKeyDistributionSend() throws IOException, ClassNotFoundException {
         out.writeObject(this.publicRSAKey);
         return (PublicKey) in.readObject();
+    }
+
+    private PublicKey rsaKeyDistributionReceive() throws IOException, ClassNotFoundException {
+        PublicKey publicKey = (PublicKey) in.readObject();
+        out.writeObject(this.publicRSAKey);
+        return publicKey;
     }
 
     /**
@@ -66,7 +70,8 @@ public class Sender implements Runnable {
      * @throws Exception when an I/O error occurs when sending the message
      */
     public void sendMessage ( String message ) throws Exception {
-        BigInteger sharedSecret = agreeOnSharedSecretSend();
+        receiverPublicRSAKey = rsaKeyDistributionSend();
+        byte[] sharedSecret = agreeOnSharedSecretSend(receiverPublicRSAKey).toByteArray();
         // Cria um padrão para encontrar partes que começam com "@"
         Pattern pattern = Pattern.compile("@\\w+");
         Matcher matcher = pattern.matcher(message);
@@ -81,7 +86,7 @@ public class Sender implements Runnable {
         // Converte a lista em um array
         String[] receivers = parts.toArray(new String[0]);
         // Creates the message object
-        byte[] messageEncrypted = Encryption.encryptAES ( message.getBytes ( ), sharedSecret.toByteArray ( ) );
+        byte[] messageEncrypted = Encryption.encryptAES ( message.getBytes ( ), sharedSecret );
         byte[] digest = Encryption.encryptRSA(Integrity.generateDigest(message.getBytes()),privateRSAKey);
         Message messageObj = new Message ( messageEncrypted, digest, username, receivers );
         // Sends the message
@@ -90,13 +95,11 @@ public class Sender implements Runnable {
         closeConnection ( );
     }
 
-    public void receiveMessage () throws Exception {
-        PublicKey senderPublicRSAKey = rsaKeyDistribution();
+    public void receiveMessage (Message messageObj) throws Exception {
+        PublicKey senderPublicRSAKey = rsaKeyDistributionReceive();
 
         byte[] sharedSecret = agreeOnSharedSecretReceive(senderPublicRSAKey).toByteArray();
 
-        // Reads the message object
-        Message messageObj = ( Message ) in.readObject ( );
         byte[] decryptedMessage = Encryption.decryptAES( messageObj.getMessage ( ), sharedSecret );
         byte[] computedDigest = Integrity.generateDigest(decryptedMessage);
         byte[] receivedDigest = Encryption.decryptRSA(messageObj.getDigest(), senderPublicRSAKey);
@@ -118,7 +121,7 @@ public class Sender implements Runnable {
         return DiffieHellman.computeSecret(new BigInteger(senderPublicKeyDecrypted), privateDHKey);
     }
 
-    private BigInteger agreeOnSharedSecretSend() throws Exception {
+    private BigInteger agreeOnSharedSecretSend(PublicKey receiverPublicRSAKey) throws Exception {
         BigInteger privateDHKey = DiffieHellman.generatePrivateKey();
         BigInteger publicDHKey = DiffieHellman.calculatePublicKey(privateDHKey);
 
@@ -167,7 +170,11 @@ public class Sender implements Runnable {
         public void run() {
             try {
                 while (true){
-                    receiveMessage();
+                    Message message = (Message) in.readObject();
+                    if(message instanceof Message){
+                        receiveMessage(message);
+                    }
+
                 }
             } catch (Exception e) {
                 throw new RuntimeException(e);
