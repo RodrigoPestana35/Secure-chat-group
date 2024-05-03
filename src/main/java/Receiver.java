@@ -7,6 +7,7 @@ import java.net.Socket;
 import java.security.KeyPair;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.util.HashMap;
 
 /**
  * This class represents a server that receives a message from the client. The server is implemented as a thread.
@@ -19,6 +20,8 @@ public class Receiver implements Runnable {
     private ObjectInputStream in;
     private ObjectOutputStream out;
     private Socket client;
+    private HashMap<String, ObjectInputStream> usersIns;
+    private HashMap<String, ObjectOutputStream> usersOuts;
 
     /**
      * Constructs a Receiver object by specifying the port number. The server will be then created on the specified
@@ -44,7 +47,7 @@ public class Receiver implements Runnable {
             // Process the request
             process ( in );
             // Close connection
-            closeConnection ( );
+            //closeConnection ( );
         } catch ( Exception e ) {
             throw new RuntimeException ( e );
         }
@@ -58,19 +61,14 @@ public class Receiver implements Runnable {
      * @throws Exception if an I/O error occurs when reading the message
      */
     private void process ( ObjectInputStream in ) throws Exception {
-
-        PublicKey senderPublicRSAKey = rsaKeyDistribution();
-
-        byte[] sharedSecret = agreeOnSharedSecret(senderPublicRSAKey).toByteArray();
-
-        // Reads the message object
         Message messageObj = ( Message ) in.readObject ( );
-        byte[] decryptedMessage = Encryption.decryptAES( messageObj.getMessage ( ), sharedSecret );
-        byte[] computedDigest = Integrity.generateDigest(decryptedMessage);
-        byte[] receivedDigest = Encryption.decryptRSA(messageObj.getDigest(), senderPublicRSAKey);
-        if(Integrity.verifyDigest(computedDigest, receivedDigest)){
-            System.out.println(new String(decryptedMessage));
+        if(!usersIns.containsKey(messageObj.getSender()) && !usersOuts.containsKey(messageObj.getSender())){
+            usersIns.put(messageObj.getSender(), in);
+            usersOuts.put(messageObj.getSender(), out);
         }
+        String receiverName = messageObj.getReceiver();
+        ObjectOutputStream receiverOut = usersOuts.get(receiverName);
+        receiverOut.writeObject(messageObj);
     }
 
     private BigInteger agreeOnSharedSecret(PublicKey senderPublicRSAKey) throws Exception {

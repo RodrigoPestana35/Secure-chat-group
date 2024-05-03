@@ -79,7 +79,7 @@ public class Sender implements Runnable {
         // Sends the message
         out.writeObject ( messageObj );
         // Close connection
-        closeConnection ( );
+        //closeConnection ( );
     }
 
     public void receiveMessage (Message messageObj) throws Exception {

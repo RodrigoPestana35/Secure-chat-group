@@ -41,4 +41,12 @@ public class Message implements Serializable {
     public byte[] getDigest() {
         return digest;
     }
+
+    public String getReceiver() {
+        return receiver;
+    }
+
+    public String getSender() {
+        return sender;
+    }
 }
