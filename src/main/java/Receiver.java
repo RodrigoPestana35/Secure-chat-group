@@ -8,6 +8,8 @@ import java.security.KeyPair;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.util.HashMap;
+import java.util.List;
+import java.util.ArrayList;
 
 /**
  * This class represents a server that receives a message from the client. The server is implemented as a thread.
@@ -20,6 +22,7 @@ public class Receiver implements Runnable {
     private ObjectInputStream in;
     private ObjectOutputStream out;
     private Socket client;
+    public static List<String> users = new ArrayList<>();
     private HashMap<String, ObjectInputStream> usersIns;
     private HashMap<String, ObjectOutputStream> usersOuts;
 

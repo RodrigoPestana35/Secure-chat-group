@@ -157,7 +157,9 @@ public class Sender implements Runnable {
                     // Converte a lista em um array
                     String[] receivers = parts.toArray(new String[0]);
                     if (receivers.length == 0) {
-                        sendMessage(message, "all");
+                        for (String user : Receiver.users) {
+                            sendMessage(message, user);
+                        }
                     }
                     else {
                         for (int i = 0; i < receivers.length; i++) {
@@ -192,7 +194,7 @@ public class Sender implements Runnable {
     public void run() {
         try {
             //conexao com o servidor e certificado
-
+            Receiver.users.add(username);
             //inicialização das threads responsaveis por enviar e receber mensagens
             Thread senderThread = new Thread(new MessageSender());
             Thread receiverThread = new Thread(new MessageReceiver());
