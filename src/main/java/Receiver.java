@@ -46,12 +46,12 @@ public class Receiver implements Runnable {
         try {
             while (true) {
                 Socket client = server.accept();
+                ObjectInputStream in = new ObjectInputStream(client.getInputStream());
+                ObjectOutputStream out = new ObjectOutputStream(client.getOutputStream());
                 System.out.println("Client connected: " + client.getInetAddress());
                 new Thread(() -> {
                     try {
                         System.out.println("try do run");
-                        ObjectInputStream in = new ObjectInputStream(client.getInputStream());
-                        ObjectOutputStream out = new ObjectOutputStream(client.getOutputStream());
                         process(in);
                     } catch (Exception e) {
                         throw new RuntimeException(e);

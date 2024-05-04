@@ -26,6 +26,11 @@ public class Sender implements Runnable {
     private PublicKey receiverPublicRSAKey;
     private String username;
     private HashMap <String, PublicKey> usersPublicKey = new HashMap<>();
+    private MessageFrame messageFrame;
+
+    public String getUsername() {
+        return username;
+    }
 
     /**
      * Constructs a Sender object by specifying the port to connect to. The socket must be created before the sender can
@@ -44,6 +49,9 @@ public class Sender implements Runnable {
         String name = scanner.nextLine();
         this.username = name;
         System.out.println("Username: "+username);
+
+        messageFrame = new MessageFrame(this);
+        messageFrame.setVisible(true);
 
         KeyPair keyPair = Encryption.generateKeyPair();
         this.publicRSAKey = keyPair.getPublic();
@@ -90,7 +98,8 @@ public class Sender implements Runnable {
     }
 
     public void receiveMessage (Message messageObj) throws Exception {
-
+        //CORRIGIRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR
+        PublicKey senderPublicRSAKey = usersPublicKey.get(new String(messageObj.getSender()));
 
         byte[] sharedSecret = agreeOnSharedSecretReceive(senderPublicRSAKey).toByteArray();
 
@@ -167,10 +176,7 @@ public class Sender implements Runnable {
                     String[] receivers = parts.toArray(new String[0]);
                     System.out.println("Receivers:");
                     if (receivers.length == 0) {
-                        for (String user : Receiver.users) {
-                            System.out.println("Enviando mensagem para: " + user);
-                            sendMessage(message, user);
-                        }
+                        sendMessage(message, "all");
                     }
                     else {
                         for (int i = 0; i < receivers.length; i++) {
@@ -216,7 +222,7 @@ public class Sender implements Runnable {
     public void run() {
         try {
             //conexao com o servidor e certificado
-            Receiver.users.add(username);
+
             //inicialização das threads responsaveis por enviar e receber mensagens
             Thread senderThread = new Thread(new MessageSender());
             Thread receiverThread = new Thread(new MessageReceiver());
