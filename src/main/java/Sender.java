@@ -3,13 +3,10 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.math.BigInteger;
 import java.net.Socket;
-import java.security.KeyPair;
-import java.security.NoSuchAlgorithmException;
-import java.security.PrivateKey;
-import java.security.PublicKey;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Scanner;
+import java.security.*;
+import java.security.cert.X509Certificate;
+import java.security.spec.X509EncodedKeySpec;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -20,7 +17,7 @@ import java.util.regex.Pattern;
 public class Sender implements Runnable {
 
     private static final String HOST = "0.0.0.0";
-    private static int port = 8000;
+    private int port = 8000;
     private final Socket client;
     private final ObjectInputStream in;
     private final ObjectOutputStream out;
@@ -28,7 +25,7 @@ public class Sender implements Runnable {
     private final PrivateKey privateRSAKey;
     private PublicKey receiverPublicRSAKey;
     private String username;
-    private static int ID = 1;
+    private HashMap <String, PublicKey> usersPublicKey = new HashMap<>();
 
     /**
      * Constructs a Sender object by specifying the port to connect to. The socket must be created before the sender can
@@ -38,28 +35,37 @@ public class Sender implements Runnable {
      */
     public Sender ( ) throws Exception {
         client = new Socket ( HOST , port );
-        port++;
+        System.out.println("Connected to the server! at port " + port);
         out = new ObjectOutputStream ( client.getOutputStream ( ) );
         in = new ObjectInputStream ( client.getInputStream ( ) );
 
-        this.username="User"+ID;
-        ID++;
+        Scanner scanner = new Scanner(System.in);
+        System.out.println("Por favor, insira o seu nome:");
+        String name = scanner.nextLine();
+        this.username = name;
+        System.out.println("Username: "+username);
 
         KeyPair keyPair = Encryption.generateKeyPair();
         this.publicRSAKey = keyPair.getPublic();
         this.privateRSAKey = keyPair.getPrivate();
+        //Receiver.usersPublicKey.put(username, publicRSAKey);
+        Message inOuts = new Message(username.getBytes(), "2".getBytes());
+        out.writeObject(inOuts);
+        //tirar depois
+        Message publicRSAKeyForEveryone = new Message(publicRSAKey.getEncoded(),username.getBytes(), "3".getBytes());
+        out.writeObject(publicRSAKeyForEveryone);
     }
 
-    private PublicKey rsaKeyDistributionSend() throws IOException, ClassNotFoundException {
-        out.writeObject(this.publicRSAKey);
-        return (PublicKey) in.readObject();
-    }
-
-    private PublicKey rsaKeyDistributionReceive() throws IOException, ClassNotFoundException {
-        PublicKey publicKey = (PublicKey) in.readObject();
-        out.writeObject(this.publicRSAKey);
-        return publicKey;
-    }
+//    private PublicKey rsaKeyDistributionSend() throws IOException, ClassNotFoundException {
+//        out.writeObject(this.publicRSAKey);
+//        return (PublicKey) in.readObject();
+//    }
+//
+//    private PublicKey rsaKeyDistributionReceive() throws IOException, ClassNotFoundException {
+//        PublicKey publicKey = (PublicKey) in.readObject();
+//        out.writeObject(this.publicRSAKey);
+//        return publicKey;
+//    }
 
     /**
      * Sends a message to the receiver using the OutputStream of the socket. The message is sent as an object of the
@@ -70,12 +76,13 @@ public class Sender implements Runnable {
      * @throws Exception when an I/O error occurs when sending the message
      */
     public void sendMessage ( String message, String receiver ) throws Exception {
-        receiverPublicRSAKey = rsaKeyDistributionSend();
+        System.out.println("Sending message to: " + receiver);
         byte[] sharedSecret = agreeOnSharedSecretSend(receiverPublicRSAKey).toByteArray();
         // Creates the message object
         byte[] messageEncrypted = Encryption.encryptAES ( message.getBytes ( ), sharedSecret );
-        byte[] digest = Encryption.encryptRSA(Integrity.generateDigest(message.getBytes()),privateRSAKey);
-        Message messageObj = new Message ( messageEncrypted, digest, username, receiver );
+        byte[] digest = Encryption.encryptRSA(Integrity.generateDigest(message.getBytes()),receiverPublicRSAKey);
+        String control = "0";
+        Message messageObj = new Message ( messageEncrypted, digest, username.getBytes(), receiver.getBytes(),control.getBytes());
         // Sends the message
         out.writeObject ( messageObj );
         // Close connection
@@ -83,13 +90,13 @@ public class Sender implements Runnable {
     }
 
     public void receiveMessage (Message messageObj) throws Exception {
-        PublicKey senderPublicRSAKey = rsaKeyDistributionReceive();
+
 
         byte[] sharedSecret = agreeOnSharedSecretReceive(senderPublicRSAKey).toByteArray();
 
         byte[] decryptedMessage = Encryption.decryptAES( messageObj.getMessage ( ), sharedSecret );
         byte[] computedDigest = Integrity.generateDigest(decryptedMessage);
-        byte[] receivedDigest = Encryption.decryptRSA(messageObj.getDigest(), senderPublicRSAKey);
+        byte[] receivedDigest = Encryption.decryptRSA(messageObj.getDigest(), privateRSAKey);
         if(Integrity.verifyDigest(computedDigest, receivedDigest)){
             System.out.println(new String(decryptedMessage));
         }
@@ -99,11 +106,12 @@ public class Sender implements Runnable {
         BigInteger privateDHKey = DiffieHellman.generatePrivateKey();
         BigInteger publicDHKey = DiffieHellman.calculatePublicKey(privateDHKey);
 
-        byte[] senderPublicKeyEncrypted = (byte[]) (in.readObject());
-        byte[] senderPublicKeyDecrypted = Encryption.decryptRSA(senderPublicKeyEncrypted, senderPublicRSAKey);
+        Message messageSenderPublicKeyEncrypted = (Message) (in.readObject());
+        byte[] senderPublicKeyDecrypted = Encryption.decryptRSA(messageSenderPublicKeyEncrypted.getMessage(), senderPublicRSAKey);
 
         byte[] publicKeyEncrypted = Encryption.encryptRSA(publicDHKey.toByteArray(),privateRSAKey);
-        sendPublicKey(publicKeyEncrypted);
+        Message messagePublicEncrypted = new Message(publicKeyEncrypted, username.getBytes(), "1".getBytes());
+        sendPublicKey(messagePublicEncrypted);
 
         return DiffieHellman.computeSecret(new BigInteger(senderPublicKeyDecrypted), privateDHKey);
     }
@@ -113,15 +121,16 @@ public class Sender implements Runnable {
         BigInteger publicDHKey = DiffieHellman.calculatePublicKey(privateDHKey);
 
         byte[] publicKeyEncrypted = Encryption.encryptRSA(publicDHKey.toByteArray(), privateRSAKey);
-        sendPublicKey(publicKeyEncrypted);
+        Message messagePublicEncrypted = new Message(publicKeyEncrypted, username.getBytes(), "1".getBytes());
+        sendPublicKey(messagePublicEncrypted);
 
-        byte[] receiverPublicKeyEncrypted = (byte[])(in.readObject());
-        byte[] receiverPublicKeyDecrypted = Encryption.decryptRSA(receiverPublicKeyEncrypted, receiverPublicRSAKey);
+        Message messageReceiverPublicKeyEncrypted = (Message) (in.readObject());
+        byte[] receiverPublicKeyDecrypted = Encryption.decryptRSA(messageReceiverPublicKeyEncrypted.getMessage(), receiverPublicRSAKey);
 
         return DiffieHellman.computeSecret(new BigInteger(receiverPublicKeyDecrypted),privateDHKey);
     }
 
-    private void sendPublicKey(byte[] publicKeyEncrypted) throws IOException {
+    private void sendPublicKey(Message publicKeyEncrypted) throws IOException {
         out.writeObject(publicKeyEncrypted);
     }
 
@@ -142,7 +151,7 @@ public class Sender implements Runnable {
             try {
                 while (true){
                     Scanner scanner = new Scanner(System.in);
-                    System.out.println("Por favor, insira algo:");
+                    System.out.println("Escreva para enviar a mensagem:");
                     String message = scanner.nextLine();
                     // Cria um padrão para encontrar partes que começam com "@"
                     Pattern pattern = Pattern.compile("@\\w+");
@@ -156,8 +165,10 @@ public class Sender implements Runnable {
                     }
                     // Converte a lista em um array
                     String[] receivers = parts.toArray(new String[0]);
+                    System.out.println("Receivers:");
                     if (receivers.length == 0) {
                         for (String user : Receiver.users) {
+                            System.out.println("Enviando mensagem para: " + user);
                             sendMessage(message, user);
                         }
                     }
@@ -180,7 +191,18 @@ public class Sender implements Runnable {
                 while (true){
                     Message message = (Message) in.readObject();
                     if(message instanceof Message){
-                        receiveMessage(message);
+                        if (Arrays.equals(message.getControl(), "3".getBytes())) {
+                            byte[] userPublicKeyBytes = message.getMessage();
+                            X509EncodedKeySpec spec = new X509EncodedKeySpec(userPublicKeyBytes);
+                            KeyFactory kf = KeyFactory.getInstance("RSA");
+                            PublicKey userPublicKey = kf.generatePublic(spec);
+                            usersPublicKey.put(new String(message.getSender()), userPublicKey);
+                        }
+                        else if (Arrays.equals(message.getControl(), "0".getBytes())) {
+                            receiveMessage(message);
+                        }
+
+
                     }
 
                 }

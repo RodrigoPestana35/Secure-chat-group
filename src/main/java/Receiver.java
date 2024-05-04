@@ -7,9 +7,7 @@ import java.net.Socket;
 import java.security.KeyPair;
 import java.security.PrivateKey;
 import java.security.PublicKey;
-import java.util.HashMap;
-import java.util.List;
-import java.util.ArrayList;
+import java.util.*;
 
 /**
  * This class represents a server that receives a message from the client. The server is implemented as a thread.
@@ -39,15 +37,19 @@ public class Receiver implements Runnable {
         KeyPair keyPair = Encryption.generateKeyPair();
         this.publicRSAKey = keyPair.getPublic();
         this.privateRSAKey = keyPair.getPrivate();
+        this.usersIns = new HashMap<>();
+        this.usersOuts = new HashMap<>();
     }
 
     @Override
     public void run() {
         try {
             while (true) {
-                final Socket client = server.accept();
+                Socket client = server.accept();
+                System.out.println("Client connected: " + client.getInetAddress());
                 new Thread(() -> {
                     try {
+                        System.out.println("try do run");
                         ObjectInputStream in = new ObjectInputStream(client.getInputStream());
                         ObjectOutputStream out = new ObjectOutputStream(client.getOutputStream());
                         process(in);
@@ -69,34 +71,71 @@ public class Receiver implements Runnable {
      * @throws Exception if an I/O error occurs when reading the message
      */
     private void process ( ObjectInputStream in ) throws Exception {
-        Message messageObj = ( Message ) in.readObject ( );
-        if(!usersIns.containsKey(messageObj.getSender()) && !usersOuts.containsKey(messageObj.getSender())){
-            usersIns.put(messageObj.getSender(), in);
-            usersOuts.put(messageObj.getSender(), out);
+        System.out.println("entra process");
+        Object obj = in.readObject();
+        if(obj instanceof Message){
+            System.out.println("le objeto");
+            Message messageObj = ( Message ) obj;
+            System.out.println("depois de adquirir message");
+            if (Arrays.equals(messageObj.getControl(), "0".getBytes())){
+                System.out.println("control 0");
+                System.out.println ( "Message received: " + new String ( messageObj.getMessage ( ) ) );
+                String receiverName = messageObj.getReceiver().toString();
+
+                ObjectOutputStream receiverOut = usersOuts.get(receiverName);
+                receiverOut.writeObject(messageObj);
+                System.out.println("enviou mensagem");
+            }
+            else if (Arrays.equals(messageObj.getControl(), "1".getBytes())){
+                System.out.println("control 1");
+                System.out.println ( "Message received: " + new String ( messageObj.getMessage ( ) ) );
+                String receiverName = messageObj.getReceiver().toString();
+                ObjectOutputStream receiverOut = usersOuts.get(receiverName);
+                receiverOut.writeObject(messageObj);
+                System.out.println("saiu control 1");
+            }
+            else if (Arrays.equals(messageObj.getControl(), "2".getBytes())){
+                System.out.println("control 2");
+                if(!usersIns.containsKey(messageObj.getMessage().toString()) && !usersOuts.containsKey(messageObj.getMessage().toString())){
+                    usersIns.put(messageObj.getMessage().toString(), this.in);
+                    usersOuts.put(messageObj.getMessage().toString(), this.out);
+                }
+                else {
+                    System.out.println("Usuário já existe");
+                }
+                System.out.println("saiu control 2");
+            }
+            else if (Arrays.equals(messageObj.getControl(), "3".getBytes())){
+                System.out.println("control 3");
+                for (ObjectOutputStream out : usersOuts.values()) {
+                    try {
+                        out.writeObject(messageObj);
+                    } catch (IOException e) {
+                        System.err.println("Erro ao enviar objeto: " + e.getMessage());
+                    }
+                }
+            }
         }
-        String receiverName = messageObj.getReceiver();
-        ObjectOutputStream receiverOut = usersOuts.get(receiverName);
-        receiverOut.writeObject(messageObj);
     }
 
-    private BigInteger agreeOnSharedSecret(PublicKey senderPublicRSAKey) throws Exception {
-        BigInteger privateDHKey = DiffieHellman.generatePrivateKey();
-        BigInteger publicDHKey = DiffieHellman.calculatePublicKey(privateDHKey);
-
-        byte[] senderPublicKeyEncrypted = (byte[]) (in.readObject());
-        byte[] senderPublicKeyDecrypted = Encryption.decryptRSA(senderPublicKeyEncrypted, senderPublicRSAKey);
-
-        byte[] publicKeyEncrypted = Encryption.encryptRSA(publicDHKey.toByteArray(),privateRSAKey);
-        sendPublicKey(publicKeyEncrypted);
-
-        return DiffieHellman.computeSecret(new BigInteger(senderPublicKeyDecrypted), privateDHKey);
-    }
-
-    private PublicKey rsaKeyDistribution() throws IOException, ClassNotFoundException {
-        PublicKey publicKey = (PublicKey) in.readObject();
-        out.writeObject(this.publicRSAKey);
-        return publicKey;
-    }
+//    private BigInteger agreeOnSharedSecret(PublicKey senderPublicRSAKey) throws Exception {
+//        BigInteger privateDHKey = DiffieHellman.generatePrivateKey();
+//        BigInteger publicDHKey = DiffieHellman.calculatePublicKey(privateDHKey);
+//
+//        byte[] senderPublicKeyEncrypted = (byte[]) (in.readObject());
+//        byte[] senderPublicKeyDecrypted = Encryption.decryptRSA(senderPublicKeyEncrypted, senderPublicRSAKey);
+//
+//        byte[] publicKeyEncrypted = Encryption.encryptRSA(publicDHKey.toByteArray(),privateRSAKey);
+//        sendPublicKey(publicKeyEncrypted);
+//
+//        return DiffieHellman.computeSecret(new BigInteger(senderPublicKeyDecrypted), privateDHKey);
+//    }
+//
+//    private PublicKey rsaKeyDistribution() throws IOException, ClassNotFoundException {
+//        PublicKey publicKey = (PublicKey) in.readObject();
+//        out.writeObject(this.publicRSAKey);
+//        return publicKey;
+//    }
 
     private void sendPublicKey(byte[] publicKeyEncrypted) throws IOException {
         out.writeObject(publicKeyEncrypted);

@@ -6,26 +6,33 @@ import java.io.Serializable;
 public class Message implements Serializable {
 
     private final byte[] message;
-    private final byte[] digest;
-    private String receiver;
-    private String sender;
+    private byte[] digest;
+    private byte[] receiver;
+    private byte[] sender;
+    private byte[] control; //0 - mensagem, 1 - troca de chaves, 2 - in outs
 
     /**
      * Constructs a Message object by specifying the message bytes that will be sent between the client and the server.
      *
      * @param message the message that is sent to the server
      */
-    public Message ( byte[] message, byte[] digest, String sender, String receiver ) {
+    public Message ( byte[] message, byte[] digest, byte[] sender, byte[] receiver, byte[] control) {
         this.digest = digest;
         this.message = message;
         this.receiver = receiver;
         this.sender = sender;
+        this.control = control;
     }
 
-    public Message ( byte[] message, byte[] digest, String sender ) {
-        this.digest = digest;
+    public Message ( byte[] message, byte[] receiver, byte[] control ) {
         this.message = message;
-        this.sender = sender;
+        this.receiver = receiver;
+        this.control = control;
+    }
+
+    public Message(byte[] message, byte[] control) {
+        this.message = message;
+        this.control = control;
     }
 
     /**
@@ -42,11 +49,15 @@ public class Message implements Serializable {
         return digest;
     }
 
-    public String getReceiver() {
+    public byte[] getReceiver() {
         return receiver;
     }
 
-    public String getSender() {
+    public byte[] getSender() {
         return sender;
+    }
+
+    public byte[] getControl() {
+        return control;
     }
 }
