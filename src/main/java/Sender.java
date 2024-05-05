@@ -1,13 +1,11 @@
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
+import java.io.*;
 import java.math.BigInteger;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.security.*;
 import java.security.cert.X509Certificate;
 import java.security.spec.X509EncodedKeySpec;
+import java.time.Instant;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -49,8 +47,18 @@ public class Sender implements Runnable {
 
         Scanner scanner = new Scanner(System.in);
         System.out.println("Por favor, insira o seu nome:");
-        String name = scanner.nextLine();
-        this.username = name;
+        boolean validName = false;
+        while (!validName) {
+            String name = scanner.nextLine();
+            if (name.length() > 0) {
+                this.username = name;
+                validName = true;
+            } else {
+                System.out.println("Nome em uso. Por favor, insira um nome válido:");
+            }
+        }
+//        String name = scanner.nextLine();
+//        this.username = name;
         System.out.println("Username: "+username);
         out.writeObject(username);
 
@@ -63,6 +71,8 @@ public class Sender implements Runnable {
 
         Certificate certificate = createCertificate();
         String certificateBase64 = encodeCertificateToBase64(certificate);
+        createPemFile(certificateBase64, username);
+        out.writeObject();
 
         //Receiver.usersPublicKey.put(username, publicRSAKey);
         //Message inOuts = new Message(username.getBytes(), "2".getBytes());
@@ -168,7 +178,7 @@ public class Sender implements Runnable {
         return certificate;
     }
 
-    public String encodeCertificateToBase64(Certificate certificate) {
+    private String encodeCertificateToBase64(Certificate certificate) {
         try {
             // Convertendo o objeto Certificate para byte[]
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -183,6 +193,41 @@ public class Sender implements Runnable {
             return certificateBase64;
         } catch (IOException e) {
             throw new RuntimeException("Erro ao codificar o certificado para Base64", e);
+        }
+    }
+
+    private void createPemFile(String certificateBase64, String username) {
+        try {
+            // Define o nome do diretório
+            String directoryName = "certificates";
+
+            // Cria o diretório, se não existir
+            File directory = new File(directoryName);
+            if (!directory.exists()) {
+                directory.mkdir();
+            } else {
+                // Se o diretório já existir, apaga todos os ficheiros existentes
+                for (File file : directory.listFiles()) {
+                    file.delete();
+                }
+            }
+
+            // Define o nome do ficheiro
+            String timestamp = String.valueOf(Instant.now().getEpochSecond());
+            String fileName = username + ".pem";
+
+            // Cria o ficheiro .pem
+            File pemFile = new File(directoryName + "/" + fileName);
+            pemFile.createNewFile();
+
+            // Escreve no ficheiro .pem
+            FileWriter writer = new FileWriter(pemFile);
+            writer.write("-----BEGIN CERTIFICATE-----\n");
+            writer.write(certificateBase64 + "\n");
+            writer.write("-----END CERTIFICATE-----\n");
+            writer.close();
+        } catch (IOException e) {
+            throw new RuntimeException("Erro ao criar o ficheiro .pem", e);
         }
     }
 
