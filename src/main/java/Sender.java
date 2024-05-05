@@ -3,6 +3,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.math.BigInteger;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 import java.security.*;
 import java.security.cert.X509Certificate;
 import java.security.spec.X509EncodedKeySpec;
@@ -49,6 +50,7 @@ public class Sender implements Runnable {
         String name = scanner.nextLine();
         this.username = name;
         System.out.println("Username: "+username);
+        out.writeObject(username);
 
         messageFrame = new MessageFrame(this);
         messageFrame.setVisible(true);
@@ -57,11 +59,11 @@ public class Sender implements Runnable {
         this.publicRSAKey = keyPair.getPublic();
         this.privateRSAKey = keyPair.getPrivate();
         //Receiver.usersPublicKey.put(username, publicRSAKey);
-        Message inOuts = new Message(username.getBytes(), "2".getBytes());
-        out.writeObject(inOuts);
+        //Message inOuts = new Message(username.getBytes(), "2".getBytes());
+        //out.writeObject(inOuts);
         //tirar depois
-        Message publicRSAKeyForEveryone = new Message(publicRSAKey.getEncoded(),username.getBytes(), "3".getBytes());
-        out.writeObject(publicRSAKeyForEveryone);
+        //Message publicRSAKeyForEveryone = new Message(publicRSAKey.getEncoded(),username.getBytes(), "3".getBytes());
+        //out.writeObject(publicRSAKeyForEveryone);
     }
 
 //    private PublicKey rsaKeyDistributionSend() throws IOException, ClassNotFoundException {
@@ -85,12 +87,13 @@ public class Sender implements Runnable {
      */
     public void sendMessage ( String message, String receiver ) throws Exception {
         System.out.println("Sending message to: " + receiver);
-        byte[] sharedSecret = agreeOnSharedSecretSend(receiverPublicRSAKey).toByteArray();
-        // Creates the message object
-        byte[] messageEncrypted = Encryption.encryptAES ( message.getBytes ( ), sharedSecret );
-        byte[] digest = Encryption.encryptRSA(Integrity.generateDigest(message.getBytes()),receiverPublicRSAKey);
-        String control = "0";
-        Message messageObj = new Message ( messageEncrypted, digest, username.getBytes(), receiver.getBytes(),control.getBytes());
+//        byte[] sharedSecret = agreeOnSharedSecretSend(receiverPublicRSAKey).toByteArray();
+//        // Creates the message object
+//        byte[] messageEncrypted = Encryption.encryptAES ( message.getBytes ( ), sharedSecret );
+//        byte[] digest = Encryption.encryptRSA(Integrity.generateDigest(message.getBytes()),receiverPublicRSAKey);
+//        String control = "0";
+        //Message messageObj = new Message ( messageEncrypted, digest, username.getBytes(), receiver.getBytes(),control.getBytes());
+        Message messageObj = new Message ( message.getBytes(), receiver.getBytes(), username.getBytes());
         // Sends the message
         out.writeObject ( messageObj );
         // Close connection
@@ -99,16 +102,19 @@ public class Sender implements Runnable {
 
     public void receiveMessage (Message messageObj) throws Exception {
         //CORRIGIRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR
-        PublicKey senderPublicRSAKey = usersPublicKey.get(new String(messageObj.getSender()));
-
-        byte[] sharedSecret = agreeOnSharedSecretReceive(senderPublicRSAKey).toByteArray();
-
-        byte[] decryptedMessage = Encryption.decryptAES( messageObj.getMessage ( ), sharedSecret );
-        byte[] computedDigest = Integrity.generateDigest(decryptedMessage);
-        byte[] receivedDigest = Encryption.decryptRSA(messageObj.getDigest(), privateRSAKey);
-        if(Integrity.verifyDigest(computedDigest, receivedDigest)){
-            System.out.println(new String(decryptedMessage));
-        }
+//        PublicKey senderPublicRSAKey = usersPublicKey.get(new String(messageObj.getSender()));
+//
+//        byte[] sharedSecret = agreeOnSharedSecretReceive(senderPublicRSAKey).toByteArray();
+//
+//        byte[] decryptedMessage = Encryption.decryptAES( messageObj.getMessage ( ), sharedSecret );
+//        byte[] computedDigest = Integrity.generateDigest(decryptedMessage);
+//        byte[] receivedDigest = Encryption.decryptRSA(messageObj.getDigest(), privateRSAKey);
+//        if(Integrity.verifyDigest(computedDigest, receivedDigest)){
+//            System.out.println(new String(decryptedMessage));
+//        }
+        String message = new String(messageObj.getMessage(), StandardCharsets.UTF_8);
+        String receiver = new String(messageObj.getControl(), StandardCharsets.UTF_8);
+        System.out.println(receiver+": "+message);
     }
 
     private BigInteger agreeOnSharedSecretReceive(PublicKey senderPublicRSAKey) throws Exception {
@@ -171,7 +177,10 @@ public class Sender implements Runnable {
                     while (matcher.find()) {
                         // Adiciona a parte encontrada à lista, removendo o "@"
                         parts.add(matcher.group().substring(1));
+                        message = message.replaceFirst(matcher.group(), "");
                     }
+                    //retira espaços em branco do inicio e do fim
+                    message = message.trim();
                     // Converte a lista em um array
                     String[] receivers = parts.toArray(new String[0]);
                     System.out.println("Receivers:");
@@ -180,9 +189,11 @@ public class Sender implements Runnable {
                     }
                     else {
                         for (int i = 0; i < receivers.length; i++) {
+                            System.out.println(receivers[i]);
                             sendMessage(message, receivers[i]);
                         }
                     }
+                    //sendMessage(message, "all");
                 }
             } catch (Exception e) {
                 throw new RuntimeException(e);
@@ -196,6 +207,7 @@ public class Sender implements Runnable {
             try {
                 while (true){
                     Message message = (Message) in.readObject();
+                    System.out.println("Message received");
                     if(message instanceof Message){
                         if (Arrays.equals(message.getControl(), "3".getBytes())) {
                             byte[] userPublicKeyBytes = message.getMessage();
@@ -205,6 +217,9 @@ public class Sender implements Runnable {
                             usersPublicKey.put(new String(message.getSender()), userPublicKey);
                         }
                         else if (Arrays.equals(message.getControl(), "0".getBytes())) {
+                            receiveMessage(message);
+                        }
+                        else{
                             receiveMessage(message);
                         }
 
@@ -226,8 +241,9 @@ public class Sender implements Runnable {
             //inicialização das threads responsaveis por enviar e receber mensagens
             Thread senderThread = new Thread(new MessageSender());
             Thread receiverThread = new Thread(new MessageReceiver());
-            senderThread.start();
             receiverThread.start();
+            senderThread.start();
+
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

@@ -4,6 +4,7 @@ import java.io.ObjectOutputStream;
 import java.math.BigInteger;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
 import java.security.PrivateKey;
 import java.security.PublicKey;
@@ -23,6 +24,7 @@ public class Receiver implements Runnable {
     public static List<String> users = new ArrayList<>();
     private HashMap<String, ObjectInputStream> usersIns;
     private HashMap<String, ObjectOutputStream> usersOuts;
+    private static int ID = 1;
 
     /**
      * Constructs a Receiver object by specifying the port number. The server will be then created on the specified
@@ -48,17 +50,25 @@ public class Receiver implements Runnable {
                 Socket client = server.accept();
                 ObjectInputStream in = new ObjectInputStream(client.getInputStream());
                 ObjectOutputStream out = new ObjectOutputStream(client.getOutputStream());
-                System.out.println("Client connected: " + client.getInetAddress());
+                String username = ( String ) in.readObject();
+                System.out.println("username: " + username);
+                usersIns.put(username, in);
+                usersOuts.put(username, out);
+                System.out.println("Client " + username +  " connected: " + client.getInetAddress());
                 new Thread(() -> {
                     try {
-                        System.out.println("try do run");
-                        process(in);
+                        while (true) {
+                            System.out.println("try do run");
+                            process(in);
+                        }
                     } catch (Exception e) {
                         throw new RuntimeException(e);
                     }
                 }).start();
             }
         } catch (IOException e) {
+            throw new RuntimeException(e);
+        } catch (ClassNotFoundException e) {
             throw new RuntimeException(e);
         }
     }
@@ -77,44 +87,71 @@ public class Receiver implements Runnable {
             System.out.println("le objeto");
             Message messageObj = ( Message ) obj;
             System.out.println("depois de adquirir message");
-            if (Arrays.equals(messageObj.getControl(), "0".getBytes())){
-                System.out.println("control 0");
-                System.out.println ( "Message received: " + new String ( messageObj.getMessage ( ) ) );
-                String receiverName = messageObj.getReceiver().toString();
-
-                ObjectOutputStream receiverOut = usersOuts.get(receiverName);
-                receiverOut.writeObject(messageObj);
-                System.out.println("enviou mensagem");
-            }
-            else if (Arrays.equals(messageObj.getControl(), "1".getBytes())){
-                System.out.println("control 1");
-                System.out.println ( "Message received: " + new String ( messageObj.getMessage ( ) ) );
-                String receiverName = messageObj.getReceiver().toString();
-                ObjectOutputStream receiverOut = usersOuts.get(receiverName);
-                receiverOut.writeObject(messageObj);
-                System.out.println("saiu control 1");
-            }
-            else if (Arrays.equals(messageObj.getControl(), "2".getBytes())){
-                System.out.println("control 2");
-                if(!usersIns.containsKey(messageObj.getMessage().toString()) && !usersOuts.containsKey(messageObj.getMessage().toString())){
-                    usersIns.put(messageObj.getMessage().toString(), this.in);
-                    usersOuts.put(messageObj.getMessage().toString(), this.out);
-                }
-                else {
-                    System.out.println("Usuário já existe");
-                }
-                System.out.println("saiu control 2");
-            }
-            else if (Arrays.equals(messageObj.getControl(), "3".getBytes())){
-                System.out.println("control 3");
+            //System.out.println(Arrays.equals(messageObj.getControl(), "0".getBytes()));
+            if ( Arrays.equals(messageObj.getReceiver(), "all".getBytes())){
+                System.out.println("entrou ALL");
                 for (ObjectOutputStream out : usersOuts.values()) {
                     try {
+                        System.out.println("envia mensagem");
                         out.writeObject(messageObj);
                     } catch (IOException e) {
                         System.err.println("Erro ao enviar objeto: " + e.getMessage());
                     }
                 }
             }
+            else{
+                System.out.println("entrou ELSE");
+                String receiverName = new String(messageObj.getReceiver(), StandardCharsets.UTF_8);
+                ObjectOutputStream receiverOut = usersOuts.get(receiverName);
+                receiverOut.writeObject(messageObj);
+            }
+
+
+//            if (Arrays.equals(messageObj.getControl(), "0".getBytes())){
+//                System.out.println("control 0");
+//                System.out.println ( "Message received: " + new String ( messageObj.getMessage ( ) ) );
+////                String receiverName = messageObj.getReceiver().toString();
+////
+////                ObjectOutputStream receiverOut = usersOuts.get(receiverName);
+////                receiverOut.writeObject(messageObj);
+//                for (ObjectOutputStream out : usersOuts.values()) {
+//                    try {
+//                        out.writeObject(messageObj);
+//                    } catch (IOException e) {
+//                        System.err.println("Erro ao enviar objeto: " + e.getMessage());
+//                    }
+//                }
+//                System.out.println("enviou mensagem");
+//            }
+//            else if (Arrays.equals(messageObj.getControl(), "1".getBytes())){
+//                System.out.println("control 1");
+//                System.out.println ( "Message received: " + new String ( messageObj.getMessage ( ) ) );
+//                String receiverName = messageObj.getReceiver().toString();
+//                ObjectOutputStream receiverOut = usersOuts.get(receiverName);
+//                receiverOut.writeObject(messageObj);
+//                System.out.println("saiu control 1");
+//            }
+//            else if (Arrays.equals(messageObj.getControl(), "2".getBytes())){
+//                System.out.println("control 2");
+//                if(!usersIns.containsKey(messageObj.getMessage().toString()) && !usersOuts.containsKey(messageObj.getMessage().toString())){
+//                    usersIns.put(messageObj.getMessage().toString(), this.in);
+//                    usersOuts.put(messageObj.getMessage().toString(), this.out);
+//                }
+//                else {
+//                    System.out.println("Usuário já existe");
+//                }
+//                System.out.println("saiu control 2");
+//            }
+//            else if (Arrays.equals(messageObj.getControl(), "3".getBytes())){
+//                System.out.println("control 3");
+//                for (ObjectOutputStream out : usersOuts.values()) {
+//                    try {
+//                        out.writeObject(messageObj);
+//                    } catch (IOException e) {
+//                        System.err.println("Erro ao enviar objeto: " + e.getMessage());
+//                    }
+//                }
+//            }
         }
     }
 
