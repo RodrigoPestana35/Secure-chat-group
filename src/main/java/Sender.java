@@ -1,3 +1,4 @@
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -60,7 +61,8 @@ public class Sender implements Runnable {
         this.publicRSAKey = keyPair.getPublic();
         this.privateRSAKey = keyPair.getPrivate();
 
-
+        Certificate certificate = createCertificate();
+        String certificateBase64 = encodeCertificateToBase64(certificate);
 
         //Receiver.usersPublicKey.put(username, publicRSAKey);
         //Message inOuts = new Message(username.getBytes(), "2".getBytes());
@@ -159,6 +161,29 @@ public class Sender implements Runnable {
 
     private void sendPublicKey(Secret publicKeyEncrypted) throws IOException {
         out.writeObject(publicKeyEncrypted);
+    }
+
+    private Certificate createCertificate() throws Exception {
+        Certificate certificate = new Certificate(username, publicRSAKey);
+        return certificate;
+    }
+
+    public String encodeCertificateToBase64(Certificate certificate) {
+        try {
+            // Convertendo o objeto Certificate para byte[]
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            ObjectOutputStream oos = new ObjectOutputStream(baos);
+            oos.writeObject(certificate);
+            oos.close();
+            byte[] certificateBytes = baos.toByteArray();
+
+            // Codificando o byte[] para Base64
+            String certificateBase64 = Base64.getEncoder().encodeToString(certificateBytes);
+
+            return certificateBase64;
+        } catch (IOException e) {
+            throw new RuntimeException("Erro ao codificar o certificado para Base64", e);
+        }
     }
 
     /**
