@@ -1,6 +1,7 @@
+import java.io.Serializable;
 import java.security.PublicKey;
 
-public class Certificate {
+public class Certificate implements Serializable {
     private String username;
     private PublicKey publicRSAKey;
     private static int ID = 1;

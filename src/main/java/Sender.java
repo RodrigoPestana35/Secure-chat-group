@@ -59,6 +59,9 @@ public class Sender implements Runnable {
         KeyPair keyPair = Encryption.generateKeyPair();
         this.publicRSAKey = keyPair.getPublic();
         this.privateRSAKey = keyPair.getPrivate();
+
+
+
         //Receiver.usersPublicKey.put(username, publicRSAKey);
         //Message inOuts = new Message(username.getBytes(), "2".getBytes());
         //out.writeObject(inOuts);
@@ -101,8 +104,8 @@ public class Sender implements Runnable {
         byte[] messageEncrypted = Encryption.encryptAES ( message.getBytes ( ), userSharedSecret );
         byte[] digest = Encryption.encryptRSA(Integrity.generateDigest(message.getBytes()),receiverPublicRSAKey);
         String control = "0";
-        //Message messageObj = new Message ( messageEncrypted, digest, username.getBytes(), receiver.getBytes(),control.getBytes());
-        Message messageObj = new Message ( message.getBytes(), receiver.getBytes(), username.getBytes());
+        Message messageObj = new Message ( messageEncrypted, digest, username.getBytes(), receiver.getBytes());
+        //Message messageObj = new Message ( message.getBytes(), receiver.getBytes(), username.getBytes());
         // Sends the message
         out.writeObject ( messageObj );
         // Close connection
@@ -122,7 +125,7 @@ public class Sender implements Runnable {
 //            System.out.println(new String(decryptedMessage));
 //        }
         String message = new String(messageObj.getMessage(), StandardCharsets.UTF_8);
-        String receiver = new String(messageObj.getControl(), StandardCharsets.UTF_8);
+        String receiver = new String(messageObj.getReceiver(), StandardCharsets.UTF_8);
         System.out.println(receiver+": "+message);
     }
 

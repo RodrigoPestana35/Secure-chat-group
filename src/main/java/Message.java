@@ -9,30 +9,28 @@ public class Message implements Serializable {
     private byte[] digest;
     private byte[] receiver;
     private byte[] sender;
-    private byte[] control; //0 - mensagem, 1 - troca de chaves, 2 - in outs
 
     /**
      * Constructs a Message object by specifying the message bytes that will be sent between the client and the server.
      *
      * @param message the message that is sent to the server
      */
-    public Message ( byte[] message, byte[] digest, byte[] sender, byte[] receiver, byte[] control) {
+    public Message ( byte[] message, byte[] digest, byte[] sender, byte[] receiver ) {
         this.digest = digest;
         this.message = message;
         this.receiver = receiver;
         this.sender = sender;
-        this.control = control;
     }
 
-    public Message ( byte[] message, byte[] receiver, byte[] control ) {
+    public Message ( byte[] message, byte[] receiver, byte[] sender ) {
         this.message = message;
         this.receiver = receiver;
-        this.control = control;
+        this.sender = sender;
     }
 
-    public Message(byte[] message, byte[] control) {
+    public Message(byte[] message, byte[] receiver) {
         this.message = message;
-        this.control = control;
+        this.receiver = receiver;
     }
 
     /**
@@ -57,7 +55,4 @@ public class Message implements Serializable {
         return sender;
     }
 
-    public byte[] getControl() {
-        return control;
-    }
 }
