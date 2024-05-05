@@ -19,8 +19,11 @@ public class Sender implements Runnable {
     private static final String HOST = "0.0.0.0";
     private int port = 8000;
     private final Socket client;
+    private final Socket clientCA;
     private final ObjectInputStream in;
     private final ObjectOutputStream out;
+    private final ObjectInputStream inCA;
+    private final ObjectOutputStream outCA;
     private final PublicKey publicRSAKey;
     private final PrivateKey privateRSAKey;
     private String username;
@@ -44,6 +47,10 @@ public class Sender implements Runnable {
         System.out.println("Connected to the server! at port " + port);
         out = new ObjectOutputStream ( client.getOutputStream ( ) );
         in = new ObjectInputStream ( client.getInputStream ( ) );
+
+        clientCA = new Socket ( HOST , 8001 );
+        outCA = new ObjectOutputStream ( clientCA.getOutputStream ( ) );
+        inCA = new ObjectInputStream ( clientCA.getInputStream ( ) );
 
         Scanner scanner = new Scanner(System.in);
         System.out.println("Por favor, insira o seu nome:");
@@ -73,7 +80,8 @@ public class Sender implements Runnable {
         String certificateBase64 = encodeCertificateToBase64(certificate);
         createPemFile(certificateBase64, username);
         String path = "certificates/" + username + ".pem";
-        out.writeObject(path);
+        outCA.writeObject(path);
+        inCA.readObject()
 
         //Receiver.usersPublicKey.put(username, publicRSAKey);
         //Message inOuts = new Message(username.getBytes(), "2".getBytes());
@@ -199,26 +207,12 @@ public class Sender implements Runnable {
 
     private void createPemFile(String certificateBase64, String username) {
         try {
-            // Define o nome do diretório
-            String directoryName = "certificates";
-
-            // Cria o diretório, se não existir
-            File directory = new File(directoryName);
-            if (!directory.exists()) {
-                directory.mkdir();
-            } else {
-                // Se o diretório já existir, apaga todos os ficheiros existentes
-                for (File file : directory.listFiles()) {
-                    file.delete();
-                }
-            }
-
             // Define o nome do ficheiro
             String timestamp = String.valueOf(Instant.now().getEpochSecond());
             String fileName = username + ".pem";
 
             // Cria o ficheiro .pem
-            File pemFile = new File(directoryName + "/" + fileName);
+            File pemFile = new File("certificates/" + fileName);
             pemFile.createNewFile();
 
             // Escreve no ficheiro .pem
