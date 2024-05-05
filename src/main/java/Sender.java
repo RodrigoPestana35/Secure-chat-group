@@ -24,9 +24,10 @@ public class Sender implements Runnable {
     private final ObjectOutputStream out;
     private final PublicKey publicRSAKey;
     private final PrivateKey privateRSAKey;
-    private PublicKey receiverPublicRSAKey;
     private String username;
     private HashMap <String, PublicKey> usersPublicKey = new HashMap<>();
+    private HashMap <String, byte[]> sharedSecrets = new HashMap<>();
+    private byte[] userSharedSecret;
     private MessageFrame messageFrame;
 
     public String getUsername() {
@@ -87,11 +88,19 @@ public class Sender implements Runnable {
      */
     public void sendMessage ( String message, String receiver ) throws Exception {
         System.out.println("Sending message to: " + receiver);
-//        byte[] sharedSecret = agreeOnSharedSecretSend(receiverPublicRSAKey).toByteArray();
-//        // Creates the message object
-//        byte[] messageEncrypted = Encryption.encryptAES ( message.getBytes ( ), sharedSecret );
-//        byte[] digest = Encryption.encryptRSA(Integrity.generateDigest(message.getBytes()),receiverPublicRSAKey);
-//        String control = "0";
+        PublicKey receiverPublicRSAKey = usersPublicKey.get(receiver); //isto não existe
+        if(!sharedSecrets.containsKey(receiver)){
+            userSharedSecret = agreeOnSharedSecretSend(receiverPublicRSAKey, receiver).toByteArray();
+            sharedSecrets.put(receiver, userSharedSecret);
+        }
+        else{
+            userSharedSecret = sharedSecrets.get(receiver);
+        }
+
+        // Creates the message object
+        byte[] messageEncrypted = Encryption.encryptAES ( message.getBytes ( ), userSharedSecret );
+        byte[] digest = Encryption.encryptRSA(Integrity.generateDigest(message.getBytes()),receiverPublicRSAKey);
+        String control = "0";
         //Message messageObj = new Message ( messageEncrypted, digest, username.getBytes(), receiver.getBytes(),control.getBytes());
         Message messageObj = new Message ( message.getBytes(), receiver.getBytes(), username.getBytes());
         // Sends the message
@@ -125,18 +134,18 @@ public class Sender implements Runnable {
         byte[] senderPublicKeyDecrypted = Encryption.decryptRSA(messageSenderPublicKeyEncrypted.getMessage(), senderPublicRSAKey);
 
         byte[] publicKeyEncrypted = Encryption.encryptRSA(publicDHKey.toByteArray(),privateRSAKey);
-        Message messagePublicEncrypted = new Message(publicKeyEncrypted, username.getBytes(), "1".getBytes());
+        Secret messagePublicEncrypted = new Secret(publicKeyEncrypted, messageSenderPublicKeyEncrypted.getSender(), username.getBytes());
         sendPublicKey(messagePublicEncrypted);
 
         return DiffieHellman.computeSecret(new BigInteger(senderPublicKeyDecrypted), privateDHKey);
     }
 
-    private BigInteger agreeOnSharedSecretSend(PublicKey receiverPublicRSAKey) throws Exception {
+    private BigInteger agreeOnSharedSecretSend(PublicKey receiverPublicRSAKey, String receiver) throws Exception {
         BigInteger privateDHKey = DiffieHellman.generatePrivateKey();
         BigInteger publicDHKey = DiffieHellman.calculatePublicKey(privateDHKey);
 
         byte[] publicKeyEncrypted = Encryption.encryptRSA(publicDHKey.toByteArray(), privateRSAKey);
-        Message messagePublicEncrypted = new Message(publicKeyEncrypted, username.getBytes(), "1".getBytes());
+        Secret messagePublicEncrypted = new Secret(publicKeyEncrypted, receiver.getBytes() , username.getBytes());
         sendPublicKey(messagePublicEncrypted);
 
         Message messageReceiverPublicKeyEncrypted = (Message) (in.readObject());
@@ -145,7 +154,7 @@ public class Sender implements Runnable {
         return DiffieHellman.computeSecret(new BigInteger(receiverPublicKeyDecrypted),privateDHKey);
     }
 
-    private void sendPublicKey(Message publicKeyEncrypted) throws IOException {
+    private void sendPublicKey(Secret publicKeyEncrypted) throws IOException {
         out.writeObject(publicKeyEncrypted);
     }
 
@@ -206,24 +215,35 @@ public class Sender implements Runnable {
         public void run() {
             try {
                 while (true){
-                    Message message = (Message) in.readObject();
+                    Object obj = in.readObject();
                     System.out.println("Message received");
-                    if(message instanceof Message){
-                        if (Arrays.equals(message.getControl(), "3".getBytes())) {
-                            byte[] userPublicKeyBytes = message.getMessage();
-                            X509EncodedKeySpec spec = new X509EncodedKeySpec(userPublicKeyBytes);
-                            KeyFactory kf = KeyFactory.getInstance("RSA");
-                            PublicKey userPublicKey = kf.generatePublic(spec);
-                            usersPublicKey.put(new String(message.getSender()), userPublicKey);
-                        }
-                        else if (Arrays.equals(message.getControl(), "0".getBytes())) {
-                            receiveMessage(message);
+                    if(obj instanceof Message){
+                        Message message = (Message) obj;
+//                        if (Arrays.equals(message.getControl(), "3".getBytes())) {
+//                            byte[] userPublicKeyBytes = message.getMessage();
+//                            X509EncodedKeySpec spec = new X509EncodedKeySpec(userPublicKeyBytes);
+//                            KeyFactory kf = KeyFactory.getInstance("RSA");
+//                            PublicKey userPublicKey = kf.generatePublic(spec);
+//                            usersPublicKey.put(new String(message.getSender()), userPublicKey);
+//                        }
+//                        else if (Arrays.equals(message.getControl(), "0".getBytes())) {
+//                            receiveMessage(message);
+//                        }
+//                        else{
+//                            receiveMessage(message);
+//                        }
+                        receiveMessage(message);
+                    }
+                    else if(obj instanceof Secret){
+                        Secret secret = (Secret) obj;
+                        String receiver = new String(secret.getReceiver(), StandardCharsets.UTF_8);
+                        if(!sharedSecrets.containsKey(receiver)){
+                            userSharedSecret = agreeOnSharedSecretReceive();
+                            sharedSecrets.put(receiver, userSharedSecret);
                         }
                         else{
-                            receiveMessage(message);
+                            userSharedSecret = sharedSecrets.get(receiver);
                         }
-
-
                     }
 
                 }
