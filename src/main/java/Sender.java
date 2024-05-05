@@ -50,11 +50,11 @@ public class Sender implements Runnable {
         boolean validName = false;
         while (!validName) {
             String name = scanner.nextLine();
-            if (name.length() > 0) {
+            if (doesFileExist(name)) {
+                System.out.println("Nome em uso. Por favor, insira outro nome:");
+            } else {
                 this.username = name;
                 validName = true;
-            } else {
-                System.out.println("Nome em uso. Por favor, insira um nome válido:");
             }
         }
 //        String name = scanner.nextLine();
@@ -72,7 +72,8 @@ public class Sender implements Runnable {
         Certificate certificate = createCertificate();
         String certificateBase64 = encodeCertificateToBase64(certificate);
         createPemFile(certificateBase64, username);
-        out.writeObject();
+        String path = "certificates/" + username + ".pem";
+        out.writeObject(path);
 
         //Receiver.usersPublicKey.put(username, publicRSAKey);
         //Message inOuts = new Message(username.getBytes(), "2".getBytes());
@@ -229,6 +230,25 @@ public class Sender implements Runnable {
         } catch (IOException e) {
             throw new RuntimeException("Erro ao criar o ficheiro .pem", e);
         }
+    }
+
+    public boolean doesFileExist(String name) {
+        File directory = new File("certificates");
+        File[] files = directory.listFiles();
+        if (files != null) {
+            for (File file : files) {
+                if (file.isFile()) {
+                    String fileName = file.getName();
+                    if (fileName.endsWith(".pem")) {
+                        String nameWithoutExtension = fileName.substring(0, fileName.length() - 4);
+                        if (nameWithoutExtension.equals(name)) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     /**
