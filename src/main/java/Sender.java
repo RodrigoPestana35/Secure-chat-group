@@ -37,7 +37,7 @@ public class Sender implements Runnable {
     private byte[] userSharedSecret;
     private MessageFrame messageFrame;
     private Secret2 messageReceiverPublicKeyEncrypted;
-    private List<String> receivers = new ArrayList<>();
+    private List<String> clients = new ArrayList<>();
 
     public String getUsername() {
         return username;
@@ -164,6 +164,8 @@ public class Sender implements Runnable {
         System.out.println("Message sent");
         // Close connection
         //closeConnection ( );
+
+
     }
 
     public void receiveMessage (Message messageObj) throws Exception {
@@ -185,6 +187,7 @@ public class Sender implements Runnable {
         byte[] receivedDigest = Encryption.decryptRSA(messageObj.getDigest(), privateRSAKey);
         if(Integrity.verifyDigest(computedDigest, receivedDigest)){
             System.out.println(new String(decryptedMessage));
+            messageFrame.displayMessage(new String(decryptedMessage));
         }
         String message = new String(messageObj.getMessage(), StandardCharsets.UTF_8);
         String receiver = new String(messageObj.getReceiver(), StandardCharsets.UTF_8);
@@ -230,7 +233,7 @@ public class Sender implements Runnable {
 
         sharedSecrets.put(receiver, DiffieHellman.computeSecret(new BigInteger(receiverPublicKeyDecrypted),privateDHKey).toByteArray());
 
-        messagePublicEncrypted= null;
+        messageReceiverPublicKeyEncrypted= null;
 
         return DiffieHellman.computeSecret(new BigInteger(receiverPublicKeyDecrypted),privateDHKey);
     }
@@ -347,7 +350,12 @@ public class Sender implements Runnable {
                     String[] receivers = parts.toArray(new String[0]);
                     System.out.println("Receivers:");
                     if (receivers.length == 0) {
-                        sendMessage(message, "all");
+                        for (String receiver : clients) {
+                            if (!receiver.equals(username)) {
+                                sendMessage(message, receiver);
+                            }
+                        }
+                        //sendMessage(message, "all");
                     }
                     else {
                         for (int i = 0; i < receivers.length; i++) {
@@ -417,7 +425,7 @@ public class Sender implements Runnable {
                             byte[] signature = Encryption.decryptRSA(certificateEnvelope.getSignature(), CApublicRSAKey);
                             if(Integrity.verifyDigest(newDigest, signature)){
                                 System.out.println("Certificado válido");
-                                receivers.add(certificate.getUsername());
+                                clients.add(certificate.getUsername());
                                 //coloca nome e chave publica no hashmap
                                 System.out.println("2 Certificate username: " + certificate.getUsername());
                                 System.out.println("2 Certificate public key: " + certificate.getPublicRSAKey());
