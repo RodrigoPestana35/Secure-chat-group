@@ -17,8 +17,11 @@ public class MainReceiver {
             }
         }
         Receiver receiver = new Receiver ( 8000 );
+        CA ca = new CA ( );
+        Thread caThread = new Thread ( ca );
         Thread serverThread = new Thread ( receiver );
         serverThread.start ( );
+        caThread.start ( );
     }
 
 }

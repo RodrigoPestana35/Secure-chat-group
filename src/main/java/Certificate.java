@@ -28,4 +28,8 @@ public class Certificate implements Serializable {
         return username;
     }
 
+
+    public PublicKey getPublicRSAKey() {
+        return publicRSAKey;
+    }
 }

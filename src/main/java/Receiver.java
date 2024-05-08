@@ -24,6 +24,7 @@ public class Receiver implements Runnable {
     public static List<String> users = new ArrayList<>();
     private HashMap<String, ObjectInputStream> usersIns;
     private HashMap<String, ObjectOutputStream> usersOuts;
+    private HashMap<ObjectInputStream, ObjectOutputStream> insOuts;
     private static int ID = 1;
 
     /**
@@ -41,6 +42,7 @@ public class Receiver implements Runnable {
         this.privateRSAKey = keyPair.getPrivate();
         this.usersIns = new HashMap<>();
         this.usersOuts = new HashMap<>();
+        this.insOuts = new HashMap<>();
     }
 
     @Override
@@ -54,6 +56,7 @@ public class Receiver implements Runnable {
                 System.out.println("username: " + username);
                 usersIns.put(username, in);
                 usersOuts.put(username, out);
+                insOuts.put(in, out);
                 System.out.println("Client " + username +  " connected: " + client.getInetAddress());
                 new Thread(() -> {
                     try {
@@ -152,6 +155,108 @@ public class Receiver implements Runnable {
 //                    }
 //                }
 //            }
+        }
+        else if (obj instanceof CertificateEnvelope){
+            CertificateEnvelope certificateEnvelope = (CertificateEnvelope) obj;
+            if(!usersOuts.isEmpty()){
+                for (ObjectOutputStream out : usersOuts.values()) {
+                    try {
+                        if(!out.equals(insOuts.get(in))){
+                            System.out.println("envia certificateEnvelope1");
+                            out.writeObject(certificateEnvelope);
+                        }
+                    } catch (IOException e) {
+                        System.err.println("Erro ao enviar objeto: " + e.getMessage());
+                    }
+                }
+            }
+            else {
+                while (true){
+                    if (!usersOuts.isEmpty()){
+                        break;
+                    }
+                }
+                for (ObjectOutputStream out : usersOuts.values()) {
+                    try {
+                        System.out.println("envia certificateEnvelope2");
+                        out.writeObject(certificateEnvelope);
+                    } catch (IOException e) {
+                        System.err.println("Erro ao enviar objeto: " + e.getMessage());
+                    }
+                }
+            }
+
+        }
+        else if (obj instanceof Secret){
+            System.out.println("entrou secret");
+            Secret secret = (Secret) obj;
+            String receiver = new String(secret.getReceiver(), StandardCharsets.UTF_8);
+            System.out.println("receiver: " + receiver);
+            if (receiver.equals("all")){
+                for (ObjectOutputStream out : usersOuts.values()) {
+                    try {
+                        System.out.println("envia secret all");
+                        out.writeObject(secret);
+                        System.out.println("secret enviado all");
+                    } catch (IOException e) {
+                        System.err.println("Erro ao enviar objeto: " + e.getMessage());
+                    }
+                }
+            }
+            else {
+                ObjectOutputStream receiverOut = usersOuts.get(receiver);
+                if (receiverOut != null) {
+                    System.out.println("envia secret");
+                    receiverOut.writeObject(secret);
+                    System.out.println("secret enviado");
+                } else {
+                    System.err.println("Erro: ObjectOutputStream para " + receiver + " é nulo");
+                }
+            }
+
+        }
+        else if (obj instanceof Secret2){
+            System.out.println("entrou secret");
+            Secret2 secret = (Secret2) obj;
+            String receiver = new String(secret.getReceiver(), StandardCharsets.UTF_8);
+            System.out.println("receiver: " + receiver);
+            if (receiver.equals("all")){
+                for (ObjectOutputStream out : usersOuts.values()) {
+                    try {
+                        System.out.println("envia secret all");
+                        out.writeObject(secret);
+                        System.out.println("secret enviado all");
+                    } catch (IOException e) {
+                        System.err.println("Erro ao enviar objeto: " + e.getMessage());
+                    }
+                }
+            }
+            else {
+                ObjectOutputStream receiverOut = usersOuts.get(receiver);
+                if (receiverOut != null) {
+                    System.out.println("envia secret");
+                    receiverOut.writeObject(secret);
+                    System.out.println("secret enviado");
+                } else {
+                    System.err.println("Erro: ObjectOutputStream para " + receiver + " é nulo");
+                }
+            }
+
+        }
+        else if (obj instanceof Certificate){
+            Certificate certificate = (Certificate) obj;
+            if(!usersOuts.isEmpty()) {
+                for (ObjectOutputStream out : usersOuts.values()) {
+                    try {
+                        if (!out.equals(insOuts.get(in))) {
+                            System.out.println("envia certificate1");
+                            out.writeObject(certificate);
+                        }
+                    } catch (IOException e) {
+                        System.err.println("Erro ao enviar objeto: " + e.getMessage());
+                    }
+                }
+            }
         }
     }
 

@@ -6,9 +6,13 @@ import java.security.*;
 import java.security.cert.X509Certificate;
 import java.security.spec.X509EncodedKeySpec;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import static java.lang.Thread.sleep;
 
 /**
  * This class represents the sender of the message. It sends the message to the receiver by means of a socket. The use
@@ -27,10 +31,13 @@ public class Sender implements Runnable {
     private final PublicKey publicRSAKey;
     private final PrivateKey privateRSAKey;
     private String username;
+    private CertificateEnvelope myCertificateEnvelope;
     private HashMap <String, PublicKey> usersPublicKey = new HashMap<>();
     private HashMap <String, byte[]> sharedSecrets = new HashMap<>();
     private byte[] userSharedSecret;
     private MessageFrame messageFrame;
+    private Secret2 messageReceiverPublicKeyEncrypted;
+    private List<String> receivers = new ArrayList<>();
 
     public String getUsername() {
         return username;
@@ -44,11 +51,11 @@ public class Sender implements Runnable {
      */
     public Sender ( ) throws Exception {
         client = new Socket ( HOST , port );
-        System.out.println("Connected to the server! at port " + port);
         out = new ObjectOutputStream ( client.getOutputStream ( ) );
         in = new ObjectInputStream ( client.getInputStream ( ) );
+        System.out.println("Connected to the server! at port " + port);
 
-        clientCA = new Socket ( HOST , 8001 );
+        clientCA = new Socket ( HOST , 8080 );
         outCA = new ObjectOutputStream ( clientCA.getOutputStream ( ) );
         inCA = new ObjectInputStream ( clientCA.getInputStream ( ) );
 
@@ -57,7 +64,7 @@ public class Sender implements Runnable {
         boolean validName = false;
         while (!validName) {
             String name = scanner.nextLine();
-            if (doesFileExist(name)) {
+            if (doesFileExist(name) || name.equals("")){
                 System.out.println("Nome em uso. Por favor, insira outro nome:");
             } else {
                 this.username = name;
@@ -75,13 +82,19 @@ public class Sender implements Runnable {
         KeyPair keyPair = Encryption.generateKeyPair();
         this.publicRSAKey = keyPair.getPublic();
         this.privateRSAKey = keyPair.getPrivate();
+        System.out.println("Public RSA Key: " + publicRSAKey);
 
-        Certificate certificate = createCertificate();
-        String certificateBase64 = encodeCertificateToBase64(certificate);
-        createPemFile(certificateBase64, username);
-        String path = "certificates/" + username + ".pem";
-        outCA.writeObject(path);
-        inCA.readObject()
+//        Certificate certificate = createCertificate();
+//        String certificateBase64 = encodeCertificateToBase64(certificate);
+//        createPemFile(certificateBase64, username);
+//        String path = "certificates/" + username + ".pem";
+//        System.out.println("Path: " + path);
+//        outCA.writeObject(path);
+//        System.out.println("Certificate sent to CA");
+//        CertificateEnvelope certificateEnvelope = (CertificateEnvelope) inCA.readObject();
+//        System.out.println("Certificate received from CA");
+//        out.writeObject(certificateEnvelope);
+//        System.out.println("Certificate sent to server");
 
         //Receiver.usersPublicKey.put(username, publicRSAKey);
         //Message inOuts = new Message(username.getBytes(), "2".getBytes());
@@ -102,6 +115,21 @@ public class Sender implements Runnable {
 //        return publicKey;
 //    }
 
+    private void certification() throws Exception {
+        Certificate certificate = createCertificate();
+        String certificateBase64 = encodeCertificateToBase64(certificate);
+        createPemFile(certificateBase64, username);
+        String path = "certificates/" + username + ".pem";
+        System.out.println("Path: " + path);
+        outCA.writeObject(path);
+        System.out.println("Certificate sent to CA");
+        myCertificateEnvelope = (CertificateEnvelope) inCA.readObject();
+        System.out.println("Certificate received from CA");
+        out.writeObject(myCertificateEnvelope);
+        System.out.println("Certificate sent to server");
+
+    }
+
     /**
      * Sends a message to the receiver using the OutputStream of the socket. The message is sent as an object of the
      * {@link Message} class.
@@ -112,39 +140,52 @@ public class Sender implements Runnable {
      */
     public void sendMessage ( String message, String receiver ) throws Exception {
         System.out.println("Sending message to: " + receiver);
-        PublicKey receiverPublicRSAKey = usersPublicKey.get(receiver); //isto não existe
+        PublicKey receiverPublicRSAKey = usersPublicKey.get(receiver);
+        System.out.println("tem chave public");
         if(!sharedSecrets.containsKey(receiver)){
+            System.out.println("nao tem shared secret");
             userSharedSecret = agreeOnSharedSecretSend(receiverPublicRSAKey, receiver).toByteArray();
             sharedSecrets.put(receiver, userSharedSecret);
+            System.out.println("shared secret no hashmap");
         }
         else{
+            System.out.println("tem shared secret");
             userSharedSecret = sharedSecrets.get(receiver);
         }
 
         // Creates the message object
         byte[] messageEncrypted = Encryption.encryptAES ( message.getBytes ( ), userSharedSecret );
         byte[] digest = Encryption.encryptRSA(Integrity.generateDigest(message.getBytes()),receiverPublicRSAKey);
-        String control = "0";
         Message messageObj = new Message ( messageEncrypted, digest, username.getBytes(), receiver.getBytes());
+        System.out.println("Message created");
         //Message messageObj = new Message ( message.getBytes(), receiver.getBytes(), username.getBytes());
         // Sends the message
         out.writeObject ( messageObj );
+        System.out.println("Message sent");
         // Close connection
         //closeConnection ( );
     }
 
     public void receiveMessage (Message messageObj) throws Exception {
-        //CORRIGIRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR
-//        PublicKey senderPublicRSAKey = usersPublicKey.get(new String(messageObj.getSender()));
+        //TODO: CORRIGIRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR
+        if (sharedSecrets.containsKey(new String(messageObj.getSender(), StandardCharsets.UTF_8))){
+            userSharedSecret = sharedSecrets.get(new String(messageObj.getSender(), StandardCharsets.UTF_8));
+        }
+        else{
+            PublicKey senderPublicRSAKey = usersPublicKey.get(new String(messageObj.getSender(), StandardCharsets.UTF_8));
+            userSharedSecret = agreeOnSharedSecretReceive(senderPublicRSAKey).toByteArray();
+            sharedSecrets.put(new String(messageObj.getSender(), StandardCharsets.UTF_8), userSharedSecret);
+        }
+//        PublicKey senderPublicRSAKey = usersPublicKey.get(new String(messageObj.getSender(), StandardCharsets.UTF_8));
 //
 //        byte[] sharedSecret = agreeOnSharedSecretReceive(senderPublicRSAKey).toByteArray();
-//
-//        byte[] decryptedMessage = Encryption.decryptAES( messageObj.getMessage ( ), sharedSecret );
-//        byte[] computedDigest = Integrity.generateDigest(decryptedMessage);
-//        byte[] receivedDigest = Encryption.decryptRSA(messageObj.getDigest(), privateRSAKey);
-//        if(Integrity.verifyDigest(computedDigest, receivedDigest)){
-//            System.out.println(new String(decryptedMessage));
-//        }
+
+        byte[] decryptedMessage = Encryption.decryptAES( messageObj.getMessage ( ), userSharedSecret );
+        byte[] computedDigest = Integrity.generateDigest(decryptedMessage);
+        byte[] receivedDigest = Encryption.decryptRSA(messageObj.getDigest(), privateRSAKey);
+        if(Integrity.verifyDigest(computedDigest, receivedDigest)){
+            System.out.println(new String(decryptedMessage));
+        }
         String message = new String(messageObj.getMessage(), StandardCharsets.UTF_8);
         String receiver = new String(messageObj.getReceiver(), StandardCharsets.UTF_8);
         System.out.println(receiver+": "+message);
@@ -153,13 +194,17 @@ public class Sender implements Runnable {
     private BigInteger agreeOnSharedSecretReceive(PublicKey senderPublicRSAKey) throws Exception {
         BigInteger privateDHKey = DiffieHellman.generatePrivateKey();
         BigInteger publicDHKey = DiffieHellman.calculatePublicKey(privateDHKey);
+        System.out.println("chaves diffie hellman geradas");
 
-        Message messageSenderPublicKeyEncrypted = (Message) (in.readObject());
-        byte[] senderPublicKeyDecrypted = Encryption.decryptRSA(messageSenderPublicKeyEncrypted.getMessage(), senderPublicRSAKey);
+        Secret messageSenderPublicKeyEncrypted = (Secret) (in.readObject());
+        System.out.println("recebeu public key");
+        byte[] senderPublicKeyDecrypted = Encryption.decryptRSA(messageSenderPublicKeyEncrypted.getSecret(), senderPublicRSAKey);
 
         byte[] publicKeyEncrypted = Encryption.encryptRSA(publicDHKey.toByteArray(),privateRSAKey);
         Secret messagePublicEncrypted = new Secret(publicKeyEncrypted, messageSenderPublicKeyEncrypted.getSender(), username.getBytes());
-        sendPublicKey(messagePublicEncrypted);
+        System.out.println("secret criada");
+        out.writeObject(messagePublicEncrypted);
+        System.out.println("public key enviada");
 
         return DiffieHellman.computeSecret(new BigInteger(senderPublicKeyDecrypted), privateDHKey);
     }
@@ -167,13 +212,25 @@ public class Sender implements Runnable {
     private BigInteger agreeOnSharedSecretSend(PublicKey receiverPublicRSAKey, String receiver) throws Exception {
         BigInteger privateDHKey = DiffieHellman.generatePrivateKey();
         BigInteger publicDHKey = DiffieHellman.calculatePublicKey(privateDHKey);
+        System.out.println("chaves diffie hellman geradas");
 
         byte[] publicKeyEncrypted = Encryption.encryptRSA(publicDHKey.toByteArray(), privateRSAKey);
         Secret messagePublicEncrypted = new Secret(publicKeyEncrypted, receiver.getBytes() , username.getBytes());
-        sendPublicKey(messagePublicEncrypted);
+        System.out.println("secret criada");
+        out.writeObject(messagePublicEncrypted);
+        System.out.println("public key enviada");
 
-        Message messageReceiverPublicKeyEncrypted = (Message) (in.readObject());
-        byte[] receiverPublicKeyDecrypted = Encryption.decryptRSA(messageReceiverPublicKeyEncrypted.getMessage(), receiverPublicRSAKey);
+        //Secret2 messageReceiverPublicKeyEncrypted = (Secret2) (in.readObject());
+        while(messageReceiverPublicKeyEncrypted==null){
+            sleep(10);
+        }
+        System.out.println("recebeu public key");
+        System.out.println("sender: " + new String(messageReceiverPublicKeyEncrypted.getSender(), StandardCharsets.UTF_8));
+        byte[] receiverPublicKeyDecrypted = Encryption.decryptRSA(messageReceiverPublicKeyEncrypted.getSecret(), receiverPublicRSAKey);
+
+        sharedSecrets.put(receiver, DiffieHellman.computeSecret(new BigInteger(receiverPublicKeyDecrypted),privateDHKey).toByteArray());
+
+        messagePublicEncrypted= null;
 
         return DiffieHellman.computeSecret(new BigInteger(receiverPublicKeyDecrypted),privateDHKey);
     }
@@ -197,9 +254,8 @@ public class Sender implements Runnable {
             byte[] certificateBytes = baos.toByteArray();
 
             // Codificando o byte[] para Base64
-            String certificateBase64 = Base64.getEncoder().encodeToString(certificateBytes);
 
-            return certificateBase64;
+            return Base64.getEncoder().encodeToString(certificateBytes);
         } catch (IOException e) {
             throw new RuntimeException("Erro ao codificar o certificado para Base64", e);
         }
@@ -243,6 +299,16 @@ public class Sender implements Runnable {
             }
         }
         return false;
+    }
+
+    public PublicKey getPublicKeyFromEncodedBytes(byte[] publicKeyBytes) {
+        try {
+            X509EncodedKeySpec spec = new X509EncodedKeySpec(publicKeyBytes);
+            KeyFactory kf = KeyFactory.getInstance("RSA");
+            return kf.generatePublic(spec);
+        } catch (Exception e) {
+            throw new RuntimeException("Erro ao converter bytes para PublicKey", e);
+        }
     }
 
     /**
@@ -303,34 +369,106 @@ public class Sender implements Runnable {
             try {
                 while (true){
                     Object obj = in.readObject();
-                    System.out.println("Message received");
+                    System.out.println("Object received");
+
                     if(obj instanceof Message){
                         Message message = (Message) obj;
-//                        if (Arrays.equals(message.getControl(), "3".getBytes())) {
-//                            byte[] userPublicKeyBytes = message.getMessage();
-//                            X509EncodedKeySpec spec = new X509EncodedKeySpec(userPublicKeyBytes);
-//                            KeyFactory kf = KeyFactory.getInstance("RSA");
-//                            PublicKey userPublicKey = kf.generatePublic(spec);
-//                            usersPublicKey.put(new String(message.getSender()), userPublicKey);
-//                        }
-//                        else if (Arrays.equals(message.getControl(), "0".getBytes())) {
-//                            receiveMessage(message);
-//                        }
-//                        else{
-//                            receiveMessage(message);
-//                        }
+                        System.out.println("objeto messagem");
                         receiveMessage(message);
                     }
                     else if(obj instanceof Secret){
+                        BigInteger privateDHKey = DiffieHellman.generatePrivateKey();
+                        BigInteger publicDHKey = DiffieHellman.calculatePublicKey(privateDHKey);
+                        System.out.println("recebeu secret");
                         Secret secret = (Secret) obj;
-                        String receiver = new String(secret.getReceiver(), StandardCharsets.UTF_8);
-                        if(!sharedSecrets.containsKey(receiver)){
-                            userSharedSecret = agreeOnSharedSecretReceive();
-                            sharedSecrets.put(receiver, userSharedSecret);
+                        System.out.println("recebeu public key");
+                        System.out.println("sender: " + new String(secret.getSender(), StandardCharsets.UTF_8));
+                        PublicKey senderPublicRSAKey = usersPublicKey.get(new String(secret.getSender(), StandardCharsets.UTF_8));
+                        System.out.println("tem chave public " + senderPublicRSAKey);
+                        byte[] senderPublicKeyDecrypted = Encryption.decryptRSA(secret.getSecret(), senderPublicRSAKey);
+
+                        byte[] publicKeyEncrypted = Encryption.encryptRSA(publicDHKey.toByteArray(),privateRSAKey);
+                        Secret2 messagePublicEncrypted = new Secret2(publicKeyEncrypted, secret.getSender(), username.getBytes());
+                        System.out.println("secret criada");
+                        //sleep(5000);
+                        out.writeObject(messagePublicEncrypted);
+                        System.out.println("public key enviada");
+                        sharedSecrets.put(new String(secret.getSender(), StandardCharsets.UTF_8), DiffieHellman.computeSecret(new BigInteger(senderPublicKeyDecrypted), privateDHKey).toByteArray());
+                        System.out.println("shared secret no hashmap" + sharedSecrets.get(new String(secret.getSender(), StandardCharsets.UTF_8)));
+                    }
+                    else if( obj instanceof Secret2){
+                        System.out.println("recebeu secret");
+                        messageReceiverPublicKeyEncrypted = (Secret2) obj;
+                        System.out.println("recebeu public key");
+                    }
+                    else if(obj instanceof CertificateEnvelope){
+                        System.out.println("recebeu certificado");
+                        CertificateEnvelope certificateEnvelope = (CertificateEnvelope) obj;
+                        System.out.println("get Certificate: " + certificateEnvelope.getCertificate());
+                        // Converte o array de bytes de volta para um objeto Certificate
+                        byte[] certificateBytes = Base64.getDecoder().decode(certificateEnvelope.getCertificate().replaceAll("\n", ""));
+                        ByteArrayInputStream byteStream = new ByteArrayInputStream(certificateBytes);
+                        ObjectInputStream objStream = new ObjectInputStream(byteStream);
+                        Certificate certificate = (Certificate) objStream.readObject();
+                        System.out.println("1 Certificate username: " + certificate.getUsername());
+                        if (!usersPublicKey.containsKey(certificate.getUsername()) && !certificate.getUsername().equals(username)){
+                            byte[] newDigest = Integrity.generateDigest(certificateEnvelope.getCertificate().getBytes());
+                            PublicKey CApublicRSAKey = getPublicKeyFromEncodedBytes(certificateEnvelope.getPublicKey());
+                            byte[] signature = Encryption.decryptRSA(certificateEnvelope.getSignature(), CApublicRSAKey);
+                            if(Integrity.verifyDigest(newDigest, signature)){
+                                System.out.println("Certificado válido");
+                                receivers.add(certificate.getUsername());
+                                //coloca nome e chave publica no hashmap
+                                System.out.println("2 Certificate username: " + certificate.getUsername());
+                                System.out.println("2 Certificate public key: " + certificate.getPublicRSAKey());
+                                usersPublicKey.put(certificate.getUsername(), certificate.getPublicRSAKey());
+                                //sleep(15000);
+                                //envia o seu certificado para todos tambem, quem ja tiver ignora quem nao tiver guarda
+                                out.writeObject(myCertificateEnvelope);
+                                LocalDateTime now = LocalDateTime.now();
+                                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");
+                                String formatDateTime = now.format(formatter);
+                                System.out.println(formatDateTime + ": O utilizador " + certificate.getUsername() + " ligou-se ao Chat.");
+                            }
                         }
-                        else{
-                            userSharedSecret = sharedSecrets.get(receiver);
+                        else if (usersPublicKey.containsKey(certificate.getUsername()) && !certificate.getUsername().equals(username)){
+                            System.out.println("O utilizador " + certificate.getUsername() + " já se encontra ligado ao Chat.");
                         }
+
+
+
+
+//                        byte[] newDigest = Integrity.generateDigest(certificateEnvelope.getCertificate().getBytes());
+//                        PublicKey CApublicRSAKey = getPublicKeyFromEncodedBytes(certificateEnvelope.getPublicKey());
+//                        byte[] signature = Encryption.decryptRSA(certificateEnvelope.getSignature(), CApublicRSAKey);
+//                        if(Integrity.verifyDigest(newDigest, signature)){
+//                            System.out.println("Certificado válido");
+//                            // Decodifica a string Base64 para um array de bytes
+////                            System.out.println("get Certificate: " + certificateEnvelope.getCertificate());
+////                            byte[] certificateBytes = Base64.getDecoder().decode(certificateEnvelope.getCertificate().replaceAll("\n", ""));
+////                            // Converte o array de bytes de volta para um objeto Certificate
+////                            ByteArrayInputStream byteStream = new ByteArrayInputStream(certificateBytes);
+////                            ObjectInputStream objStream = new ObjectInputStream(byteStream);
+////                            Certificate certificate = (Certificate) objStream.readObject();
+//                            //coloca nome e chave publica no hashmap
+//                            System.out.println("Certificate username: " + certificate.getUsername());
+//                            System.out.println("Certificate public key: " + certificate.getPublicRSAKey());
+//                            if (!usersPublicKey.containsKey(certificate.getUsername()) && !certificate.getUsername().equals(username)){
+//                                usersPublicKey.put(certificate.getUsername(), certificate.getPublicRSAKey());
+//                                out.writeObject(myCertificate);
+//                                LocalDateTime now = LocalDateTime.now();
+//                                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");
+//                                String formatDateTime = now.format(formatter);
+//                                System.out.println(formatDateTime + ": O utilizador " + certificate.getUsername() + " ligou-se ao Chat.");
+//                            }
+//                            else {
+//                                LocalDateTime now = LocalDateTime.now();
+//                                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");
+//                                String formatDateTime = now.format(formatter);
+//                                System.out.println(formatDateTime + ": O utilizador " + certificate.getUsername() + " ligou-se ao Chat.");
+//                                System.out.println("O utilizador " + certificate.getUsername() + " já se encontra ligado ao Chat.");
+//                            }
+
                     }
 
                 }
@@ -343,8 +481,8 @@ public class Sender implements Runnable {
     @Override
     public void run() {
         try {
-            //conexao com o servidor e certificado
-
+            //certificado
+            certification();
             //inicialização das threads responsaveis por enviar e receber mensagens
             Thread senderThread = new Thread(new MessageSender());
             Thread receiverThread = new Thread(new MessageReceiver());
