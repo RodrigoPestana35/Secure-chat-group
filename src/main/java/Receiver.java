@@ -171,11 +171,8 @@ public class Receiver implements Runnable {
                 }
             }
             else {
-                while (true){
-                    if (!usersOuts.isEmpty()){
-                        break;
-                    }
-                }
+                System.out.println("Não tem mais ninguem no chat");
+
                 for (ObjectOutputStream out : usersOuts.values()) {
                     try {
                         System.out.println("envia certificateEnvelope2");

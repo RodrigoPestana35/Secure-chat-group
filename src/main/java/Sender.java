@@ -38,6 +38,7 @@ public class Sender implements Runnable {
     private MessageFrame messageFrame;
     private Secret2 messageReceiverPublicKeyEncrypted;
     private List<String> clients = new ArrayList<>();
+    private boolean first = true;
 
     public String getUsername() {
         return username;
@@ -186,7 +187,8 @@ public class Sender implements Runnable {
         byte[] computedDigest = Integrity.generateDigest(decryptedMessage);
         byte[] receivedDigest = Encryption.decryptRSA(messageObj.getDigest(), privateRSAKey);
         if(Integrity.verifyDigest(computedDigest, receivedDigest)){
-            System.out.println(new String(decryptedMessage));
+            String sender = new String(messageObj.getSender(), StandardCharsets.UTF_8);
+            System.out.println(sender + ": " + new String(decryptedMessage));
             messageFrame.displayMessage(new String(decryptedMessage));
         }
         String message = new String(messageObj.getMessage(), StandardCharsets.UTF_8);
@@ -330,6 +332,7 @@ public class Sender implements Runnable {
         public void run() {
             try {
                 while (true){
+                    first=true;
                     Scanner scanner = new Scanner(System.in);
                     System.out.println("Escreva para enviar a mensagem:");
                     String message = scanner.nextLine();
@@ -350,17 +353,22 @@ public class Sender implements Runnable {
                     String[] receivers = parts.toArray(new String[0]);
                     System.out.println("Receivers:");
                     if (receivers.length == 0) {
-                        for (String receiver : clients) {
-                            if (!receiver.equals(username)) {
-                                sendMessage(message, receiver);
-                            }
+                        for(String user : clients ){
+                            sendMessage(message,user);
                         }
                         //sendMessage(message, "all");
                     }
                     else {
-                        for (int i = 0; i < receivers.length; i++) {
-                            System.out.println(receivers[i]);
-                            sendMessage(message, receivers[i]);
+                        for (String receiver : receivers) {
+                            if (!receiver.equals(username) && clients.contains(receiver)) {
+                                sendMessage(message, receiver);
+                            }
+                            else if(!receiver.equals(username) && !clients.contains(receiver)){
+                                System.out.println("Não existe nenhum utilizador com o nome " + receiver + " no chat.");
+                            }
+                            else if(receiver.equals(username)){
+                                System.out.println("Não se pode mandar mensagem para nós mesmos.");
+                            }
                         }
                     }
                     //sendMessage(message, "all");
@@ -433,10 +441,13 @@ public class Sender implements Runnable {
                                 //sleep(15000);
                                 //envia o seu certificado para todos tambem, quem ja tiver ignora quem nao tiver guarda
                                 out.writeObject(myCertificateEnvelope);
-                                LocalDateTime now = LocalDateTime.now();
-                                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");
-                                String formatDateTime = now.format(formatter);
-                                System.out.println(formatDateTime + ": O utilizador " + certificate.getUsername() + " ligou-se ao Chat.");
+                                if (!first){
+                                    LocalDateTime now = LocalDateTime.now();
+                                    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");
+                                    String formatDateTime = now.format(formatter);
+                                    System.out.println(formatDateTime + ": O utilizador " + certificate.getUsername() + " ligou-se ao Chat.");
+                                }
+
                             }
                         }
                         else if (usersPublicKey.containsKey(certificate.getUsername()) && !certificate.getUsername().equals(username)){
