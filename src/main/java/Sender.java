@@ -35,7 +35,7 @@ public class Sender implements Runnable {
     private HashMap <String, PublicKey> usersPublicKey = new HashMap<>();
     private HashMap <String, byte[]> sharedSecrets = new HashMap<>();
     private byte[] userSharedSecret;
-    private MessageFrame messageFrame;
+    private final MessageFrame messageFrame;
     private Secret2 messageReceiverPublicKeyEncrypted;
     private List<String> clients = new ArrayList<>();
 
@@ -185,13 +185,14 @@ public class Sender implements Runnable {
         byte[] decryptedMessage = Encryption.decryptAES( messageObj.getMessage ( ), userSharedSecret );
         byte[] computedDigest = Integrity.generateDigest(decryptedMessage);
         byte[] receivedDigest = Encryption.decryptRSA(messageObj.getDigest(), privateRSAKey);
-        if(Integrity.verifyDigest(computedDigest, receivedDigest)){
-            System.out.println(new String(decryptedMessage));
-            messageFrame.displayMessage(new String(decryptedMessage));
-        }
         String message = new String(messageObj.getMessage(), StandardCharsets.UTF_8);
         String receiver = new String(messageObj.getReceiver(), StandardCharsets.UTF_8);
-        System.out.println(receiver+": "+message);
+        String sender = new String(messageObj.getSender(), StandardCharsets.UTF_8);
+        System.out.println("SENDER: " + sender + ": "+message);
+        if(Integrity.verifyDigest(computedDigest, receivedDigest)){
+            //System.out.println("MESSAGE: " + new String(messageObj.getReceiver()) + "...." + new String(decryptedMessage));
+            messageFrame.displayMessage(new String(decryptedMessage), sender, true);
+        }
     }
 
     private BigInteger agreeOnSharedSecretReceive(PublicKey senderPublicRSAKey) throws Exception {
@@ -330,9 +331,20 @@ public class Sender implements Runnable {
         public void run() {
             try {
                 while (true){
+                    String message;
+
                     Scanner scanner = new Scanner(System.in);
                     System.out.println("Escreva para enviar a mensagem:");
-                    String message = scanner.nextLine();
+                    //message = scanner.nextLine();
+                    while(Objects.equals(messageFrame.message, "") || messageFrame.message == null) {
+                            //System.out.println("ESPERANDO MENSAGEM");
+                    }
+                    message = messageFrame.message;
+                    messageFrame.message="";
+
+                    System.out.println("ASD"+messageFrame.message);
+                    System.out.println("MENSAGEM");
+                    messageFrame.displayMessage(message, "Me", true);
                     // Cria um padrão para encontrar partes que começam com "@"
                     Pattern pattern = Pattern.compile("@\\w+");
                     Matcher matcher = pattern.matcher(message);
@@ -438,9 +450,11 @@ public class Sender implements Runnable {
                                 String formatDateTime = now.format(formatter);
                                 System.out.println(formatDateTime + ": O utilizador " + certificate.getUsername() + " ligou-se ao Chat.");
                             }
+                            messageFrame.displayMessage("Bem-vindo ", certificate.getUsername(), false);
                         }
                         else if (usersPublicKey.containsKey(certificate.getUsername()) && !certificate.getUsername().equals(username)){
                             System.out.println("O utilizador " + certificate.getUsername() + " já se encontra ligado ao Chat.");
+
                         }
 
 

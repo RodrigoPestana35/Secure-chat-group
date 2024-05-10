@@ -1,22 +1,31 @@
 import javax.swing.*;
+import javax.swing.text.BadLocationException;
+import javax.swing.text.Style;
+import javax.swing.text.StyleConstants;
+import javax.swing.text.StyledDocument;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.Console;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 public class MessageFrame extends JFrame {
-    private JTextArea messageArea;
+    private JTextPane messageArea;
     private JTextField inputField;
     private JButton sendButton;
     private Sender sender;
+    public String message;
+    StyledDocument doc;
 
     public MessageFrame(Sender sender) {
-        this.sender = sender;
 
+        this.sender = sender;
         setTitle("Sender: " + sender.getUsername());
         setSize(500, 500);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
-        messageArea = new JTextArea();
+        messageArea = new JTextPane();
         messageArea.setEditable(false);
         JScrollPane scrollPane = new JScrollPane(messageArea);
         add(scrollPane, BorderLayout.CENTER);
@@ -27,7 +36,8 @@ public class MessageFrame extends JFrame {
         sendButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                String message = inputField.getText();
+                message = inputField.getText();
+                System.out.println("MENSAGEM ENVIADA: " + message);
                 // Aqui você pode implementar a lógica para enviar a mensagem
                 // sender.sendMessage(message);
                 inputField.setText("");
@@ -37,9 +47,38 @@ public class MessageFrame extends JFrame {
         panel.add(inputField);
         panel.add(sendButton);
         add(panel, BorderLayout.SOUTH);
+
+        doc = messageArea.getStyledDocument();
+
     }
 
-    public void displayMessage(String message) {
-        messageArea.append(message + "\n");
+
+    public void displayMessage(String message, String sender, boolean isMessage) throws BadLocationException {
+        SimpleDateFormat dateFormat = new SimpleDateFormat("dd-MM-yyyy HH:mm");
+        Date date = new Date();
+        String dateFormatted = dateFormat.format(date);
+        Style redStyle = doc.addStyle("Red", null);
+        StyleConstants.setForeground(redStyle, Color.RED);
+        StyleConstants.setFontSize(redStyle, 15);
+
+        Style messageStyle = doc.addStyle("User", null);
+        StyleConstants.setFontSize(messageStyle, 15);
+
+        Style userStyle = doc.addStyle("User", null);
+        StyleConstants.setBold(userStyle, true);
+        StyleConstants.setFontSize(userStyle, 15);
+
+        if (!isMessage) {
+
+            doc.insertString(doc.getLength(), message + sender, redStyle);
+            StyleConstants.setFontSize(redStyle, 10);
+            doc.insertString(doc.getLength()," (" + dateFormatted + ")" + "\n", redStyle);
+        }
+        else {
+            doc.insertString(doc.getLength(), sender + ": ", userStyle);
+            doc.insertString(doc.getLength(), message, messageStyle);
+            StyleConstants.setFontSize(messageStyle, 10);
+            doc.insertString(doc.getLength(),  " (" + dateFormatted + ")" + "\n", messageStyle);
+        }
     }
 }
