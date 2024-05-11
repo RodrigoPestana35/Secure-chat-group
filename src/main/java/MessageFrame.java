@@ -14,14 +14,14 @@ public class MessageFrame extends JFrame {
     private JTextPane messageArea;
     private JTextField inputField;
     private JButton sendButton;
-    private Sender sender;
+    private String sender;
     public String message;
     StyledDocument doc;
 
-    public MessageFrame(Sender sender) {
+    public MessageFrame(String sender) {
 
         this.sender = sender;
-        setTitle("Sender: " + sender.getUsername());
+        setTitle("Sender: " + sender);
         setSize(500, 500);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
