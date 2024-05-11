@@ -32,12 +32,14 @@ public class Sender implements Runnable {
     private final PrivateKey privateRSAKey;
     private String username;
     private CertificateEnvelope myCertificateEnvelope;
+    private Certificate thiscertificate;
     private HashMap <String, PublicKey> usersPublicKey = new HashMap<>();
     private HashMap <String, byte[]> sharedSecrets = new HashMap<>();
     private byte[] userSharedSecret;
     private MessageFrame messageFrame;
     private Secret2 messageReceiverPublicKeyEncrypted;
     private List<String> clients = new ArrayList<>();
+    private List<Certificate> revogados = new ArrayList<>();
 
     public String getUsername() {
         return username;
@@ -119,6 +121,7 @@ public class Sender implements Runnable {
         Certificate certificate = createCertificate();
         String certificateBase64 = encodeCertificateToBase64(certificate);
         createPemFile(certificateBase64, username);
+        thiscertificate = certificate;
         String path = "certificates/" + username + ".pem";
         System.out.println("Path: " + path);
         outCA.writeObject(path);
@@ -243,7 +246,8 @@ public class Sender implements Runnable {
     }
 
     private Certificate createCertificate() throws Exception {
-        Certificate certificate = new Certificate(username, publicRSAKey);
+        LocalDateTime data = LocalDateTime.now();
+        Certificate certificate = new Certificate(username, publicRSAKey, data);
         return certificate;
     }
 
@@ -329,7 +333,8 @@ public class Sender implements Runnable {
         @Override
         public void run() {
             try {
-                while (true){
+                while (!thiscertificate.isRevogado() || !revogados.contains(thiscertificate)){
+                    thiscertificate.checkRevogado();
                     Scanner scanner = new Scanner(System.in);
                     System.out.println("Escreva para enviar a mensagem:");
                     String message = scanner.nextLine();
@@ -365,6 +370,8 @@ public class Sender implements Runnable {
                     }
                     //sendMessage(message, "all");
                 }
+                revogados.add(thiscertificate);
+                revogado();
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
@@ -375,75 +382,71 @@ public class Sender implements Runnable {
         @Override
         public void run() {
             try {
-                while (true){
-                    Object obj = in.readObject();
-                    System.out.println("Object received");
+                while (true) {
+                    if (!thiscertificate.isRevogado() || !revogados.contains(thiscertificate)) {
+                        thiscertificate.checkRevogado();
+                        Object obj = in.readObject();
+                        System.out.println("Object received");
 
-                    if(obj instanceof Message){
-                        Message message = (Message) obj;
-                        System.out.println("objeto messagem");
-                        receiveMessage(message);
-                    }
-                    else if(obj instanceof Secret){
-                        BigInteger privateDHKey = DiffieHellman.generatePrivateKey();
-                        BigInteger publicDHKey = DiffieHellman.calculatePublicKey(privateDHKey);
-                        System.out.println("recebeu secret");
-                        Secret secret = (Secret) obj;
-                        System.out.println("recebeu public key");
-                        System.out.println("sender: " + new String(secret.getSender(), StandardCharsets.UTF_8));
-                        PublicKey senderPublicRSAKey = usersPublicKey.get(new String(secret.getSender(), StandardCharsets.UTF_8));
-                        System.out.println("tem chave public " + senderPublicRSAKey);
-                        byte[] senderPublicKeyDecrypted = Encryption.decryptRSA(secret.getSecret(), senderPublicRSAKey);
+                        if (obj instanceof Message) {
+                            Message message = (Message) obj;
+                            System.out.println("objeto messagem");
+                            receiveMessage(message);
+                        } else if (obj instanceof Secret) {
+                            BigInteger privateDHKey = DiffieHellman.generatePrivateKey();
+                            BigInteger publicDHKey = DiffieHellman.calculatePublicKey(privateDHKey);
+                            System.out.println("recebeu secret");
+                            Secret secret = (Secret) obj;
+                            System.out.println("recebeu public key");
+                            System.out.println("sender: " + new String(secret.getSender(), StandardCharsets.UTF_8));
+                            PublicKey senderPublicRSAKey = usersPublicKey.get(new String(secret.getSender(), StandardCharsets.UTF_8));
+                            System.out.println("tem chave public " + senderPublicRSAKey);
+                            byte[] senderPublicKeyDecrypted = Encryption.decryptRSA(secret.getSecret(), senderPublicRSAKey);
 
-                        byte[] publicKeyEncrypted = Encryption.encryptRSA(publicDHKey.toByteArray(),privateRSAKey);
-                        Secret2 messagePublicEncrypted = new Secret2(publicKeyEncrypted, secret.getSender(), username.getBytes());
-                        System.out.println("secret criada");
-                        //sleep(5000);
-                        out.writeObject(messagePublicEncrypted);
-                        System.out.println("public key enviada");
-                        sharedSecrets.put(new String(secret.getSender(), StandardCharsets.UTF_8), DiffieHellman.computeSecret(new BigInteger(senderPublicKeyDecrypted), privateDHKey).toByteArray());
-                        System.out.println("shared secret no hashmap" + sharedSecrets.get(new String(secret.getSender(), StandardCharsets.UTF_8)));
-                    }
-                    else if( obj instanceof Secret2){
-                        System.out.println("recebeu secret");
-                        messageReceiverPublicKeyEncrypted = (Secret2) obj;
-                        System.out.println("recebeu public key");
-                    }
-                    else if(obj instanceof CertificateEnvelope){
-                        System.out.println("recebeu certificado");
-                        CertificateEnvelope certificateEnvelope = (CertificateEnvelope) obj;
-                        System.out.println("get Certificate: " + certificateEnvelope.getCertificate());
-                        // Converte o array de bytes de volta para um objeto Certificate
-                        byte[] certificateBytes = Base64.getDecoder().decode(certificateEnvelope.getCertificate().replaceAll("\n", ""));
-                        ByteArrayInputStream byteStream = new ByteArrayInputStream(certificateBytes);
-                        ObjectInputStream objStream = new ObjectInputStream(byteStream);
-                        Certificate certificate = (Certificate) objStream.readObject();
-                        System.out.println("1 Certificate username: " + certificate.getUsername());
-                        if (!usersPublicKey.containsKey(certificate.getUsername()) && !certificate.getUsername().equals(username)){
-                            byte[] newDigest = Integrity.generateDigest(certificateEnvelope.getCertificate().getBytes());
-                            PublicKey CApublicRSAKey = getPublicKeyFromEncodedBytes(certificateEnvelope.getPublicKey());
-                            byte[] signature = Encryption.decryptRSA(certificateEnvelope.getSignature(), CApublicRSAKey);
-                            if(Integrity.verifyDigest(newDigest, signature)){
-                                System.out.println("Certificado válido");
-                                clients.add(certificate.getUsername());
-                                //coloca nome e chave publica no hashmap
-                                System.out.println("2 Certificate username: " + certificate.getUsername());
-                                System.out.println("2 Certificate public key: " + certificate.getPublicRSAKey());
-                                usersPublicKey.put(certificate.getUsername(), certificate.getPublicRSAKey());
-                                //sleep(15000);
-                                //envia o seu certificado para todos tambem, quem ja tiver ignora quem nao tiver guarda
-                                out.writeObject(myCertificateEnvelope);
-                                LocalDateTime now = LocalDateTime.now();
-                                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");
-                                String formatDateTime = now.format(formatter);
-                                System.out.println(formatDateTime + ": O utilizador " + certificate.getUsername() + " ligou-se ao Chat.");
+                            byte[] publicKeyEncrypted = Encryption.encryptRSA(publicDHKey.toByteArray(), privateRSAKey);
+                            Secret2 messagePublicEncrypted = new Secret2(publicKeyEncrypted, secret.getSender(), username.getBytes());
+                            System.out.println("secret criada");
+                            //sleep(5000);
+                            out.writeObject(messagePublicEncrypted);
+                            System.out.println("public key enviada");
+                            sharedSecrets.put(new String(secret.getSender(), StandardCharsets.UTF_8), DiffieHellman.computeSecret(new BigInteger(senderPublicKeyDecrypted), privateDHKey).toByteArray());
+                            System.out.println("shared secret no hashmap" + sharedSecrets.get(new String(secret.getSender(), StandardCharsets.UTF_8)));
+                        } else if (obj instanceof Secret2) {
+                            System.out.println("recebeu secret");
+                            messageReceiverPublicKeyEncrypted = (Secret2) obj;
+                            System.out.println("recebeu public key");
+                        } else if (obj instanceof CertificateEnvelope) {
+                            System.out.println("recebeu certificado");
+                            CertificateEnvelope certificateEnvelope = (CertificateEnvelope) obj;
+                            System.out.println("get Certificate: " + certificateEnvelope.getCertificate());
+                            // Converte o array de bytes de volta para um objeto Certificate
+                            byte[] certificateBytes = Base64.getDecoder().decode(certificateEnvelope.getCertificate().replaceAll("\n", ""));
+                            ByteArrayInputStream byteStream = new ByteArrayInputStream(certificateBytes);
+                            ObjectInputStream objStream = new ObjectInputStream(byteStream);
+                            Certificate certificate = (Certificate) objStream.readObject();
+                            System.out.println("1 Certificate username: " + certificate.getUsername() + "criado em " + certificate.getDate());
+                            if (!usersPublicKey.containsKey(certificate.getUsername()) && !certificate.getUsername().equals(username) && !certificate.isRevogado()) {
+                                byte[] newDigest = Integrity.generateDigest(certificateEnvelope.getCertificate().getBytes());
+                                PublicKey CApublicRSAKey = getPublicKeyFromEncodedBytes(certificateEnvelope.getPublicKey());
+                                byte[] signature = Encryption.decryptRSA(certificateEnvelope.getSignature(), CApublicRSAKey);
+                                if (Integrity.verifyDigest(newDigest, signature)) {
+                                    System.out.println("Certificado válido");
+                                    clients.add(certificate.getUsername());
+                                    //coloca nome e chave publica no hashmap
+                                    System.out.println("2 Certificate username: " + certificate.getUsername());
+                                    System.out.println("2 Certificate public key: " + certificate.getPublicRSAKey());
+                                    usersPublicKey.put(certificate.getUsername(), certificate.getPublicRSAKey());
+                                    //sleep(15000);
+                                    //envia o seu certificado para todos tambem, quem ja tiver ignora quem nao tiver guarda
+                                    out.writeObject(myCertificateEnvelope);
+                                    LocalDateTime now = LocalDateTime.now();
+                                    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");
+                                    String formatDateTime = now.format(formatter);
+                                    System.out.println(formatDateTime + ": O utilizador " + certificate.getUsername() + " ligou-se ao Chat.");
+                                }
+                            } else if (usersPublicKey.containsKey(certificate.getUsername()) && !certificate.getUsername().equals(username)) {
+                                System.out.println("O utilizador " + certificate.getUsername() + " já se encontra ligado ao Chat.");
                             }
-                        }
-                        else if (usersPublicKey.containsKey(certificate.getUsername()) && !certificate.getUsername().equals(username)){
-                            System.out.println("O utilizador " + certificate.getUsername() + " já se encontra ligado ao Chat.");
-                        }
-
-
 
 
 //                        byte[] newDigest = Integrity.generateDigest(certificateEnvelope.getCertificate().getBytes());
@@ -477,8 +480,12 @@ public class Sender implements Runnable {
 //                                System.out.println("O utilizador " + certificate.getUsername() + " já se encontra ligado ao Chat.");
 //                            }
 
-                    }
+                        }
 
+                    } else {
+                        System.out.println("-----------------CERTIFICADO REVOGADO------------------");
+                        revogado();
+                    }
                 }
             } catch (Exception e) {
                 throw new RuntimeException(e);
@@ -497,6 +504,15 @@ public class Sender implements Runnable {
             receiverThread.start();
             senderThread.start();
 
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public void revogado(){
+        revogados.add(thiscertificate);
+        try {
+            certification();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
