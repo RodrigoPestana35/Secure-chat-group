@@ -76,7 +76,7 @@ public class Sender implements Runnable {
         System.out.println("Username: "+username);
         out.writeObject(username);
 
-        messageFrame = new MessageFrame(this.username);
+        messageFrame = new MessageFrame(this);
         messageFrame.setVisible(true);
 
         KeyPair keyPair = Encryption.generateKeyPair();
