@@ -406,7 +406,7 @@ public class Sender implements Runnable {
                             byte[] publicKeyEncrypted = Encryption.encryptRSA(publicDHKey.toByteArray(), privateRSAKey);
                             Secret2 messagePublicEncrypted = new Secret2(publicKeyEncrypted, secret.getSender(), username.getBytes());
                             System.out.println("secret criada");
-                            //sleep(5000);
+
                             out.writeObject(messagePublicEncrypted);
                             System.out.println("public key enviada");
                             sharedSecrets.put(new String(secret.getSender(), StandardCharsets.UTF_8), DiffieHellman.computeSecret(new BigInteger(senderPublicKeyDecrypted), privateDHKey).toByteArray());
