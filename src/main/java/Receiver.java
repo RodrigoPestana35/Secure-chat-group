@@ -41,9 +41,9 @@ public class Receiver implements Runnable {
     public void run() {
         try {
             while (true) {
-                client = server.accept();
-                in = new ObjectInputStream(client.getInputStream());
-                out = new ObjectOutputStream(client.getOutputStream());
+                Socket client = server.accept();
+                ObjectInputStream in = new ObjectInputStream(client.getInputStream());
+                ObjectOutputStream out = new ObjectOutputStream(client.getOutputStream());
                 String username = ( String ) in.readObject();
                 System.out.println("username: " + username);
                 usersIns.put(username, in);
