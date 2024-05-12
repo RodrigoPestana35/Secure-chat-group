@@ -28,12 +28,11 @@ public class Receiver implements Runnable {
     private static int ID = 1;
 
     /**
-     * Constructs a Receiver object by specifying the port number. The server will be then created on the specified
-     * port. The Receiver will be accepting connections from all local addresses.
+     * Constructs a Receiver object by specifying the port number.
      *
      * @param port the port number
      *
-     * @throws IOException if an I/O error occurs when opening the socket
+     * @throws Exception if an I/O error occurs when creating the server socket
      */
     public Receiver ( int port ) throws Exception {
         server = new ServerSocket ( port );
@@ -45,6 +44,9 @@ public class Receiver implements Runnable {
         this.insOuts = new HashMap<>();
     }
 
+    /**
+     * Runs the server.
+     */
     @Override
     public void run() {
         try {
@@ -77,11 +79,11 @@ public class Receiver implements Runnable {
     }
 
     /**
-     * Processes the request from the client.
+     * Processes the message received from the client and forwards to receivers.
      *
      * @param in the input stream
      *
-     * @throws Exception if an I/O error occurs when reading the message
+     * @throws Exception if an I/O error occurs when reading the object
      */
     private void process ( ObjectInputStream in ) throws Exception {
         System.out.println("entra process");
@@ -108,53 +110,6 @@ public class Receiver implements Runnable {
                 ObjectOutputStream receiverOut = usersOuts.get(receiverName);
                 receiverOut.writeObject(messageObj);
             }
-
-
-//            if (Arrays.equals(messageObj.getControl(), "0".getBytes())){
-//                System.out.println("control 0");
-//                System.out.println ( "Message received: " + new String ( messageObj.getMessage ( ) ) );
-////                String receiverName = messageObj.getReceiver().toString();
-////
-////                ObjectOutputStream receiverOut = usersOuts.get(receiverName);
-////                receiverOut.writeObject(messageObj);
-//                for (ObjectOutputStream out : usersOuts.values()) {
-//                    try {
-//                        out.writeObject(messageObj);
-//                    } catch (IOException e) {
-//                        System.err.println("Erro ao enviar objeto: " + e.getMessage());
-//                    }
-//                }
-//                System.out.println("enviou mensagem");
-//            }
-//            else if (Arrays.equals(messageObj.getControl(), "1".getBytes())){
-//                System.out.println("control 1");
-//                System.out.println ( "Message received: " + new String ( messageObj.getMessage ( ) ) );
-//                String receiverName = messageObj.getReceiver().toString();
-//                ObjectOutputStream receiverOut = usersOuts.get(receiverName);
-//                receiverOut.writeObject(messageObj);
-//                System.out.println("saiu control 1");
-//            }
-//            else if (Arrays.equals(messageObj.getControl(), "2".getBytes())){
-//                System.out.println("control 2");
-//                if(!usersIns.containsKey(messageObj.getMessage().toString()) && !usersOuts.containsKey(messageObj.getMessage().toString())){
-//                    usersIns.put(messageObj.getMessage().toString(), this.in);
-//                    usersOuts.put(messageObj.getMessage().toString(), this.out);
-//                }
-//                else {
-//                    System.out.println("Usuário já existe");
-//                }
-//                System.out.println("saiu control 2");
-//            }
-//            else if (Arrays.equals(messageObj.getControl(), "3".getBytes())){
-//                System.out.println("control 3");
-//                for (ObjectOutputStream out : usersOuts.values()) {
-//                    try {
-//                        out.writeObject(messageObj);
-//                    } catch (IOException e) {
-//                        System.err.println("Erro ao enviar objeto: " + e.getMessage());
-//                    }
-//                }
-//            }
         }
         else if (obj instanceof CertificateEnvelope){
             CertificateEnvelope certificateEnvelope = (CertificateEnvelope) obj;
@@ -256,30 +211,6 @@ public class Receiver implements Runnable {
             }
         }
     }
-
-//    private BigInteger agreeOnSharedSecret(PublicKey senderPublicRSAKey) throws Exception {
-//        BigInteger privateDHKey = DiffieHellman.generatePrivateKey();
-//        BigInteger publicDHKey = DiffieHellman.calculatePublicKey(privateDHKey);
-//
-//        byte[] senderPublicKeyEncrypted = (byte[]) (in.readObject());
-//        byte[] senderPublicKeyDecrypted = Encryption.decryptRSA(senderPublicKeyEncrypted, senderPublicRSAKey);
-//
-//        byte[] publicKeyEncrypted = Encryption.encryptRSA(publicDHKey.toByteArray(),privateRSAKey);
-//        sendPublicKey(publicKeyEncrypted);
-//
-//        return DiffieHellman.computeSecret(new BigInteger(senderPublicKeyDecrypted), privateDHKey);
-//    }
-//
-//    private PublicKey rsaKeyDistribution() throws IOException, ClassNotFoundException {
-//        PublicKey publicKey = (PublicKey) in.readObject();
-//        out.writeObject(this.publicRSAKey);
-//        return publicKey;
-//    }
-
-    private void sendPublicKey(byte[] publicKeyEncrypted) throws IOException {
-        out.writeObject(publicKeyEncrypted);
-    }
-
 
     /**
      * Closes the connection and the associated streams.
