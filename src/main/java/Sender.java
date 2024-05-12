@@ -363,6 +363,10 @@ public class Sender implements Runnable {
      *
      */
     private class MessageSender implements Runnable {
+        /**
+         * The run method sends a message to the receiver. The message is sent to the receiver by means of a socket.
+         *
+         */
         @Override
         public void run() {
             try {
@@ -431,6 +435,10 @@ public class Sender implements Runnable {
      *
      */
     private class MessageReceiver implements Runnable {
+        /**
+         * The run method receives a message from the sender. The message is received from the sender by means of a socket.
+         *
+         */
         @Override
         public void run() {
             try {
