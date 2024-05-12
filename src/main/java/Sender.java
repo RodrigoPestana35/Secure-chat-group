@@ -495,6 +495,7 @@ public class Sender implements Runnable {
                                     String formatDateTime = now.format(formatter);
                                     System.out.println(formatDateTime + ": O utilizador " + certificate.getUsername() + " ligou-se ao Chat.");
                                 }
+                                messageFrame.displayMessage("Bem-vindo ", certificate.getUsername(), false);
                             } else if (usersPublicKey.containsKey(certificate.getUsername()) && !certificate.getUsername().equals(username)) {
                                 System.out.println("O utilizador " + certificate.getUsername() + " já se encontra ligado ao Chat.");
                             }
