@@ -10,6 +10,9 @@ import java.io.Console;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
+/**
+ * Represents a chat window with a text area to display messages and a text field to send messages
+ */
 public class MessageFrame extends JFrame {
     private JTextPane messageArea;
     private JTextField inputField;
@@ -18,7 +21,7 @@ public class MessageFrame extends JFrame {
     public String message;
     StyledDocument doc;
 
-    /*
+    /**
     *Constructs a MessageFrame object, specifying the sender name and creating a new panel
     *
     * @param sender the name of the sender
@@ -57,7 +60,7 @@ public class MessageFrame extends JFrame {
 
     }
 
-    /*
+    /**
      *Displays a message in the chat
      *
      * @param message to display
