@@ -15,7 +15,6 @@ on:
       - detached3
       - final
 
-
 jobs:
   build:
     runs-on: ubuntu-latest
