@@ -7,8 +7,8 @@ public class MainSender {
 
     /**
      * Main method
-     * @param args
-     * @throws Exception
+     * @param args arguments
+     * @throws Exception if an error occurs
      */
     public static void main ( String[] args ) throws Exception {
         Sender sender = new Sender ( );

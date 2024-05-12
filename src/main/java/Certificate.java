@@ -18,9 +18,9 @@ public class Certificate implements Serializable {
 
     /**
      * Constructor of the class
-     * @param username
-     * @param publicRSAKey
-     * @param date
+     * @param username client username
+     * @param publicRSAKey client public RSA key
+     * @param date date of the certificate
      */
     public Certificate(String username, PublicKey publicRSAKey, LocalDateTime date) {
         this.username = username;

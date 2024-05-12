@@ -12,6 +12,8 @@ public class Secret implements Serializable {
      * Constructs a Secret object by specifying the secret bytes that will be sent between the client and the server.
      *
      * @param secret the secret that is sent to the server
+     * @param receiver the receiver of the secret
+     * @param sender the sender of the secret
      */
     public Secret(byte[] secret, byte[] receiver, byte[] sender) {
         this.secret = secret;

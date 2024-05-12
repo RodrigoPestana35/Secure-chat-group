@@ -12,20 +12,13 @@ public class CertificateEnvelope implements Serializable {
      * Constructs a CertificateEnvelope object by specifying the certificate string that will be sent between the client and the server.
      *
      * @param certificate the certificate that is sent to the server
+     * @param signature the signature that is sent to the server
+     * @param publicKey the public key that is sent to the server
      */
     public CertificateEnvelope(String certificate, byte[] signature, byte[] publicKey) {
         this.certificate = certificate;
         this.signature = signature;
         this.publicKey = publicKey;
-    }
-
-    /**
-     * Gets the certificate string.
-     *
-     * @return the certificate string
-     */
-    public CertificateEnvelope(String certificate) {
-        this.certificate = certificate;
     }
 
     /**
