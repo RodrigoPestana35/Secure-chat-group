@@ -1,0 +1,32 @@
+name: Unit-Tests
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+      - Branch_Join
+      - Load-Info
+      - Servers
+      - cliente
+      - ficheiro-de-configuração
+      - interface
+      - task-pool
+      - final
+
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3.3.0
+      - name: Setup Java JDK on ${{ matrix.os }}
+        uses: actions/setup-java@v3.10.0
+        with:
+          distribution: 'microsoft'
+          java-version: '17'
+      - name: Build with Maven on ${{ matrix.os }}
+        run: mvn package
