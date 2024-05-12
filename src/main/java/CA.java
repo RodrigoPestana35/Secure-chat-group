@@ -6,14 +6,21 @@ import java.nio.file.Paths;
 import java.security.*;
 import java.util.concurrent.locks.ReentrantLock;
 
+/**
+ * Class that represents the Certificate Authority (CA)
+
+ */
 public class CA implements Runnable {
     private final ServerSocket server;
     private ObjectOutputStream outCA;
     private ObjectInputStream inCA;
     private PublicKey publicRSAKey;
     private PrivateKey privateRSAKey;
-    private static final ReentrantLock lock = new ReentrantLock();
 
+    /**
+     * Constructor of the CA class
+     * @throws Exception
+     */
     public CA() throws Exception {
         server = new ServerSocket(8080);
         KeyPair keyPair =  KeyPairGenerator.getInstance("RSA").generateKeyPair();
@@ -21,20 +28,11 @@ public class CA implements Runnable {
         this.privateRSAKey = keyPair.getPrivate();
     }
 
-
-
-    public void signCertificate(Certificate certificate) throws Exception {
-        //logica para ir buscar o certificado
-
-        //logica para assinar o certificado
-        Signature privateSignature = Signature.getInstance("SHA256withRSA");
-        privateSignature.initSign(this.privateRSAKey);
-        privateSignature.update(certificate.getUsername().getBytes());
-        byte[] signature = privateSignature.sign();
-        certificate.setSignature(signature);
-
-    }
-
+    /**
+     * Method that reads the content of a certificate file
+     * @param filePath path of the certificate file
+     * @return the content of the certificate file
+     */
     public String getCertificateContent(String filePath) {
         StringBuilder certificateContent = new StringBuilder();
         try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
@@ -58,11 +56,13 @@ public class CA implements Runnable {
         return certificateContent.toString();
     }
 
+    /**
+     * Thread method that waits for a certificate to arrive to create a thread to sign that certificate and then sends it back to the user
+     */
     @Override
     public void run() {
         try {
             while (true) {
-                lock.lock();
                 Socket client = server.accept();
                 outCA = new ObjectOutputStream(client.getOutputStream());
                 inCA = new ObjectInputStream(client.getInputStream());
@@ -85,7 +85,6 @@ public class CA implements Runnable {
                         e.printStackTrace();
                     }
                 }).start();
-                lock.unlock();
             }
         } catch (Exception e) {
             e.printStackTrace();
