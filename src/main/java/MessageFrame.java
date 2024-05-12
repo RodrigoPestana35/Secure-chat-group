@@ -18,6 +18,11 @@ public class MessageFrame extends JFrame {
     public String message;
     StyledDocument doc;
 
+    /*
+    *Constructs a MessageFrame object, specifying the sender name and creating a new panel
+    *
+    * @param sender the name of the sender
+    */
     public MessageFrame(String sender) {
 
         this.sender = sender;
@@ -52,7 +57,15 @@ public class MessageFrame extends JFrame {
 
     }
 
-
+    /*
+     *Displays a message in the chat
+     *
+     * @param message to display
+     * @param sender the name of the sender
+     * @param isMessage if is a message sent by a user or from the system
+     *
+     * @throws BadLocationException if an invalid document location is specified
+     */
     public void displayMessage(String message, String sender, boolean isMessage) throws BadLocationException {
         SimpleDateFormat dateFormat = new SimpleDateFormat("dd-MM-yyyy HH:mm");
         Date date = new Date();
