@@ -369,10 +369,7 @@ public class Sender implements Runnable {
                 while (!thiscertificate.isRevogado() && !revogados.contains(thiscertificate)){
                     thiscertificate.checkRevogado();
                     String message;
-
-                    Scanner scanner = new Scanner(System.in);
                     System.out.println("Escreva para enviar a mensagem:");
-                    //message = scanner.nextLine();
                     while(Objects.equals(messageFrame.message, "") || messageFrame.message == null) {
                             //System.out.println("ESPERANDO MENSAGEM");
                     }
