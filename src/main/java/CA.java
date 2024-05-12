@@ -19,7 +19,7 @@ public class CA implements Runnable {
 
     /**
      * Constructor of the CA class
-     * @throws Exception
+     * @throws Exception  if an error occurs
      */
     public CA() throws Exception {
         server = new ServerSocket(8080);
@@ -31,8 +31,8 @@ public class CA implements Runnable {
     /**
      * Method that reads the content of a certificate file
      * @param filePath path of the certificate file
-     * @throws IOException
      * @return the content of the certificate file
+     * @throws RuntimeException  if an error occurs
      */
     public String getCertificateContent(String filePath) {
         StringBuilder certificateContent = new StringBuilder();

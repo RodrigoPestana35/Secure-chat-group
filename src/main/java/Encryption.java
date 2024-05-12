@@ -48,11 +48,11 @@ public class Encryption {
      *
      * @return the decrypted message
      *
-     * @throws NoSuchPaddingException
-     * @throws NoSuchAlgorithmException
-     * @throws InvalidKeyException
-     * @throws IllegalBlockSizeException
-     * @throws BadPaddingException
+     * @throws NoSuchPaddingException  if an error occurs
+     * @throws NoSuchAlgorithmException if an error occurs
+     * @throws InvalidKeyException if an error occurs
+     * @throws IllegalBlockSizeException if an error occurs
+     * @throws BadPaddingException if an error occurs
      */
     public static byte[] decryptRSA (byte[] message, Key key) throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
         Cipher cipher = Cipher.getInstance("RSA");
