@@ -31,6 +31,7 @@ public class CA implements Runnable {
     /**
      * Method that reads the content of a certificate file
      * @param filePath path of the certificate file
+     * @throws IOException
      * @return the content of the certificate file
      */
     public String getCertificateContent(String filePath) {
@@ -58,6 +59,7 @@ public class CA implements Runnable {
 
     /**
      * Thread method that waits for a certificate to arrive to create a thread to sign that certificate and then sends it back to the user
+     * @throws Exception
      */
     @Override
     public void run() {
