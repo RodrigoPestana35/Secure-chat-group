@@ -4,6 +4,9 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Date;
 
+/**
+ * Class that represents a certificate
+ */
 public class Certificate implements Serializable {
     private String username;
     private PublicKey publicRSAKey;
@@ -13,6 +16,12 @@ public class Certificate implements Serializable {
     private boolean revogado = false;
     private LocalDateTime date;
 
+    /**
+     * Constructor of the class
+     * @param username
+     * @param publicRSAKey
+     * @param date
+     */
     public Certificate(String username, PublicKey publicRSAKey, LocalDateTime date) {
         this.username = username;
         this.publicRSAKey = publicRSAKey;
@@ -21,31 +30,41 @@ public class Certificate implements Serializable {
         ID++;
     }
 
-
-    public byte[] getSignature() {
-        return signature;
-    }
-
-    public void setSignature(byte[] signature) {
-        this.signature = signature;
-    }
-
+    /**
+     * Method that returns the username
+     * @return username
+     */
     public String getUsername() {
         return username;
     }
 
+    /**
+     * Metohd that returns the Public RSA Key
+     * @return publicRSAKey
+     */
     public PublicKey getPublicRSAKey() {
         return publicRSAKey;
     }
 
+    /**
+     * Method that returns the date
+     * @return date
+     */
     public LocalDateTime getDate(){
         return date;
     }
 
+    /**
+     * Method that returns whether the certificate is revoked or not
+     * @return boolean
+     */
     public boolean isRevogado() {
         return revogado;
     }
 
+    /**
+     * Method which checks if the certificate is revoked
+     */
     public void checkRevogado() {
         LocalDateTime now = LocalDateTime.now();
         Date out = Date.from(now.atZone(ZoneId.systemDefault()).toInstant());
