@@ -333,7 +333,7 @@ public class Sender implements Runnable {
         @Override
         public void run() {
             try {
-                while (!thiscertificate.isRevogado() || !revogados.contains(thiscertificate)){
+                while (!thiscertificate.isRevogado() && !revogados.contains(thiscertificate)){
                     thiscertificate.checkRevogado();
                     Scanner scanner = new Scanner(System.in);
                     System.out.println("Escreva para enviar a mensagem:");
@@ -370,8 +370,8 @@ public class Sender implements Runnable {
                     }
                     //sendMessage(message, "all");
                 }
+                System.out.println("-----------------Certificado Revogado---------------------");
                 revogados.add(thiscertificate);
-                revogado();
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
@@ -382,8 +382,7 @@ public class Sender implements Runnable {
         @Override
         public void run() {
             try {
-                while (true) {
-                    if (!thiscertificate.isRevogado() || !revogados.contains(thiscertificate)) {
+                while (!thiscertificate.isRevogado() && !revogados.contains(thiscertificate)) {
                         thiscertificate.checkRevogado();
                         Object obj = in.readObject();
                         System.out.println("Object received");
@@ -481,11 +480,6 @@ public class Sender implements Runnable {
 //                            }
 
                         }
-
-                    } else {
-                        System.out.println("-----------------CERTIFICADO REVOGADO------------------");
-                        revogado();
-                    }
                 }
             } catch (Exception e) {
                 throw new RuntimeException(e);
@@ -509,12 +503,4 @@ public class Sender implements Runnable {
         }
     }
 
-    public void revogado(){
-        revogados.add(thiscertificate);
-        try {
-            certification();
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
 }

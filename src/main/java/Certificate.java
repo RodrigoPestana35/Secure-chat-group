@@ -51,6 +51,6 @@ public class Certificate implements Serializable {
         Date out = Date.from(now.atZone(ZoneId.systemDefault()).toInstant());
         Date created = Date.from(date.atZone(ZoneId.systemDefault()).toInstant());
         System.out.println("Diferença data: " + (out.getTime() - created.getTime()));
-        revogado = (out.getTime() - created.getTime() > 50000);
+        revogado = (out.getTime() - created.getTime()) > 100000;
     }
 }
