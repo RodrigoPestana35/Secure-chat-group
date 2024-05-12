@@ -7,13 +7,12 @@ on:
   push:
     branches:
       - main
-      - Branch_Join
-      - Load-Info
-      - Servers
-      - cliente
-      - ficheiro-de-configuração
-      - interface
-      - task-pool
+      - CertificadoRevog
+      - Chat
+      - CA
+      - detached
+      - detached2
+      - detached3
       - final
 
 
