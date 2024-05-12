@@ -4,9 +4,9 @@ import java.io.Serializable;
  * This class represents a secret object that is sent between the client and the server.
  */
 public class Secret implements Serializable {
-    private byte[] secret;
-    private byte[] receiver;
-    private byte[] sender;
+    private final byte[] secret;
+    private final byte[] receiver;
+    private final byte[] sender;
 
     /**
      * Constructs a Secret object by specifying the secret bytes that will be sent between the client and the server.
