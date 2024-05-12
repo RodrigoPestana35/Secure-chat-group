@@ -6,9 +6,9 @@ import java.io.Serializable;
 public class Message implements Serializable {
 
     private final byte[] message;
-    private byte[] digest;
-    private byte[] receiver;
-    private byte[] sender;
+    private final byte[] digest;
+    private final byte[] receiver;
+    private final byte[] sender;
 
     /**
      * Constructs a Message object by specifying the message bytes that will be sent between the client and the server.
