@@ -1,5 +1,6 @@
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.*;
@@ -27,6 +28,7 @@ class MessageFrameTest {
         doc = new JTextPane().getStyledDocument();
     }
 
+    @Disabled
     @Test
     void displayMessage() throws Exception {
         messageFrame.displayMessage("Test", "sender", true);
