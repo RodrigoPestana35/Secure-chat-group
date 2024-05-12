@@ -28,7 +28,7 @@ class MessageFrameTest {
         doc = new JTextPane().getStyledDocument();
     }
 
-    @Disabled
+
     @Test
     void displayMessage() throws Exception {
         messageFrame.displayMessage("Test", "sender", true);
