@@ -19,7 +19,7 @@ public class CA implements Runnable {
 
     /**
      * Constructor of the CA class
-     * @throws Exception  if an error occurs
+     * @throws Exception if an error occurs
      */
     public CA() throws Exception {
         server = new ServerSocket(8080);
@@ -59,7 +59,6 @@ public class CA implements Runnable {
 
     /**
      * Thread method that waits for a certificate to arrive to create a thread to sign that certificate and then sends it back to the user
-     * @throws Exception
      */
     @Override
     public void run() {
