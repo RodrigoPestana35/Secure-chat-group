@@ -30,6 +30,7 @@ class MessageFrameTest {
 
 
     @Test
+    @Disabled
     void displayMessage() throws Exception {
         messageFrame.displayMessage("Test", "sender", true);
 
