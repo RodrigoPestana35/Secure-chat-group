@@ -1,7 +1,15 @@
 import java.io.File;
 
+/**
+ * Class that starts the server and the CA
+ */
 public class MainReceiver {
 
+    /**
+     * Main method
+     * @param args
+     * @throws Exception
+     */
     public static void main ( String[] args ) throws Exception {
         // Define o nome do diretório
         String directoryName = "certificates";
