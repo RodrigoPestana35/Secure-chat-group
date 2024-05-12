@@ -3,7 +3,6 @@ import java.math.BigInteger;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.security.*;
-import java.security.cert.X509Certificate;
 import java.security.spec.X509EncodedKeySpec;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -21,7 +20,7 @@ import static java.lang.Thread.sleep;
 public class Sender implements Runnable {
 
     private static final String HOST = "0.0.0.0";
-    private int port = 8000;
+    private final int port = 8000;
     private final Socket client;
     private final Socket clientCA;
     private final ObjectInputStream in;
@@ -70,7 +69,7 @@ public class Sender implements Runnable {
         boolean validName = false;
         while (!validName) {
             String name = scanner.nextLine();
-            if (doesFileExist(name) || name.equals("")){
+            if (doesFileExist(name) || name.isEmpty()){
                 System.out.println("Nome em uso. Por favor, insira outro nome:");
             } else {
                 this.username = name;
@@ -250,8 +249,7 @@ public class Sender implements Runnable {
      * @throws Exception when an I/O error occurs when creating the certificate
      */
     private Certificate createCertificate() throws Exception {
-        Certificate certificate = new Certificate(username, publicRSAKey);
-        return certificate;
+        return new Certificate(username, publicRSAKey);
     }
 
     /**
