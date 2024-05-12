@@ -1,13 +1,10 @@
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.math.BigInteger;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
-import java.security.PrivateKey;
-import java.security.PublicKey;
 import java.util.*;
 
 /**
@@ -16,16 +13,12 @@ import java.util.*;
 public class Receiver implements Runnable {
 
     private final ServerSocket server;
-    private final PublicKey publicRSAKey;
-    private final PrivateKey privateRSAKey;
     private ObjectInputStream in;
     private ObjectOutputStream out;
     private Socket client;
-    public static List<String> users = new ArrayList<>();
     private HashMap<String, ObjectInputStream> usersIns;
     private HashMap<String, ObjectOutputStream> usersOuts;
     private HashMap<ObjectInputStream, ObjectOutputStream> insOuts;
-    private static int ID = 1;
 
     /**
      * Constructs a Receiver object by specifying the port number.
@@ -36,9 +29,6 @@ public class Receiver implements Runnable {
      */
     public Receiver ( int port ) throws Exception {
         server = new ServerSocket ( port );
-        KeyPair keyPair = Encryption.generateKeyPair();
-        this.publicRSAKey = keyPair.getPublic();
-        this.privateRSAKey = keyPair.getPrivate();
         this.usersIns = new HashMap<>();
         this.usersOuts = new HashMap<>();
         this.insOuts = new HashMap<>();
@@ -51,9 +41,9 @@ public class Receiver implements Runnable {
     public void run() {
         try {
             while (true) {
-                Socket client = server.accept();
-                ObjectInputStream in = new ObjectInputStream(client.getInputStream());
-                ObjectOutputStream out = new ObjectOutputStream(client.getOutputStream());
+                client = server.accept();
+                in = new ObjectInputStream(client.getInputStream());
+                out = new ObjectOutputStream(client.getOutputStream());
                 String username = ( String ) in.readObject();
                 System.out.println("username: " + username);
                 usersIns.put(username, in);
@@ -71,9 +61,7 @@ public class Receiver implements Runnable {
                     }
                 }).start();
             }
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        } catch (ClassNotFoundException e) {
+        } catch (IOException | ClassNotFoundException e) {
             throw new RuntimeException(e);
         }
     }
